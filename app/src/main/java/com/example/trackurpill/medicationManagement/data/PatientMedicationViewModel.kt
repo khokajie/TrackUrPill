@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.MEDICATION
 import com.example.trackurpill.data.Medication
+import com.example.trackurpill.data.REMINDER
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObjects
 
@@ -53,6 +54,11 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
     // Add or update medication
     fun setMedication(medication: Medication) {
         MEDICATION.document(medication.medicationId).set(medication)
+    }
+
+    // Delete a reminder
+    fun deleteMedication(medicationId: String) {
+        MEDICATION.document(medicationId).delete()
     }
 
     // Filter and Sort Operations
