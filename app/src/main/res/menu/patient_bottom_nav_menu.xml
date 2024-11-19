@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/patientMedicationFragment"
+        android:icon="@drawable/ic_medication"
+        android:title="Medications" />
+    <item android:id="@+id/patientHealthTrackingFragment"
+        android:icon="@drawable/ic_health_tracking"
+        android:title="Health Tracking" />
+    <item android:id="@+id/userProfile"
+        android:icon="@drawable/ic_profile"
+        android:title="Profile" />
+</menu>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="emailInput" type="id" />
+    <item name="logo" type="id" />
+    <item name="emailInputLayout" type="id" />
+    <item name="passwordInputLayout" type="id" />
+    <item name="passwordInput" type="id" />
+    <item name="loginButton" type="id" />
+    <item name="registerLink" type="id" />
+    <item name="forgotPasswordLink" type="id" />
+    <item name="txtLayoutEmail" type="id" />
+    <item name="txtEmail" type="id"/>
+    <item name="registerButton" type="id"/>
+    <item name="loginLink" type="id"/>
+    <item name="imgProfilePicture" type="id"/>
+</resources>

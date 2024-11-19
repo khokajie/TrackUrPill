@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "193046627232",
+    "project_id": "trackurpill",
+    "storage_bucket": "trackurpill.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193046627232:android:3b732f705e7af2a0985ac5",
+        "android_client_info": {
+          "package_name": "com.example.trackurpill"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrdgfEgbjF9rG2_5nPXuQwYHKPHU_caZ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

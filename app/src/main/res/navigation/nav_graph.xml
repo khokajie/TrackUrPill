@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.example.trackurpill.userManagement.ui.Login"
+        android:label="Login"
+        tools:layout="@layout/fragment_login" />
+
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="com.example.trackurpill.userManagement.ui.Register"
+        android:label="Register"
+        tools:layout="@layout/fragment_register" />
+
+    <fragment
+        android:id="@+id/patientMedicationFragment"
+        android:name="com.example.trackurpill.medicationManagement.ui.PatientMedicationFragment"
+        android:label="PatientMedication"
+        tools:layout="@layout/fragment_patient_medication" />
+
+    <fragment
+        android:id="@+id/addPatientMedicationFragment"
+        android:name="com.example.trackurpill.medicationManagement.ui.AddPatientMedicationFragment"
+        android:label="AddPatientMedication"
+        tools:layout="@layout/fragment_add_patient_medication" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.caregiverMonitorFragment"
+        android:label="CaregiverManagement"
+        tools:layout="@layout/fragment_caregiver_monitor" />
+
+    <fragment
+        android:id="@+id/userProfile"
+        android:name="com.example.trackurpill.userManagement.ui.UserProfile"
+        android:label="UserProfile"
+        tools:layout="@layout/fragment_user_profile" />
+
+    <fragment
+        android:id="@+id/medicationDetails"
+        android:name="com.example.trackurpill.medicationManagement.ui.MedicationDetailsFragment"
+        android:label="MedicationDetails"
+        tools:layout="@layout/fragment_medication_details" />
+
+
+</navigation>

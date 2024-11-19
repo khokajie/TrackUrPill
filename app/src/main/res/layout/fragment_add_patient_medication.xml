@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_gray"
+    android:padding="16dp">
+
+    <!-- Medication Photo Placeholder -->
+    <ImageView
+        android:id="@+id/imgMedicationPhoto"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/baseline_medical_information_24"
+        android:contentDescription="Upload Medication Photo"
+        android:scaleType="centerCrop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Click text-->
+    <TextView
+        android:id="@+id/clickToAdd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Click to add medication photo"
+        android:textColor="@color/primary_blue"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imgMedicationPhoto" />
+
+    <!-- Medication Name Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/txtLayoutMedicationName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:hint="Medication Name"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/clickToAdd">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/txtMedicationName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textCapWords" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Dosage Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/txtLayoutDosage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Dosage (e.g., 1 tablet)"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/txtLayoutMedicationName">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/txtDosage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Expiration Date Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/txtLayoutExpirationDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Expiration Date (MM/DD/YYYY)"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/txtLayoutDosage">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/txtExpirationDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusable="false"
+            android:clickable="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+
+    <!-- Stock Level Input -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/txtLayoutStockLevel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:hint="Stock Level"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/txtLayoutExpirationDate">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/txtStockLevel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <!-- Add Medication Button -->
+    <Button
+        android:id="@+id/btnAddMedication"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="64dp"
+        android:layout_marginTop="40dp"
+        android:layout_marginEnd="64dp"
+        android:backgroundTint="@color/primary_blue"
+        android:text="Add Medication"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/txtLayoutStockLevel" />
+</androidx.constraintlayout.widget.ConstraintLayout>

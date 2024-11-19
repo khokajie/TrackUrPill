@@ -1,0 +1,32 @@
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary_blue">#007BFF</color> <!-- Used for buttons and accents -->
+    <color name="primary_teal">#20C997</color> <!-- Optional teal accent -->
+
+    <!-- Secondary Colors -->
+    <color name="secondary_orange">#FFC107</color> <!-- Optional secondary accent -->
+    <color name="secondary_green">#28A745</color> <!-- Optional for success messages -->
+    <color name="secondary_gray">#ADB5BD</color>
+
+
+    <!-- Neutral Colors -->
+    <color name="background_gray">#F8F9FA</color> <!-- Light background color -->
+    <color name="text_dark_gray">#343A40</color> <!-- Main text color -->
+    <color name="text_light_gray">#6C757D</color> <!-- Placeholder and hint text -->
+    <color name="white">#FFFFFF</color> <!-- Standard white -->
+    <color name="black">#000000</color> <!-- Standard black -->
+
+    <!-- Error and Warning Colors -->
+    <color name="error_red">#DC3545</color> <!-- For error messages -->
+    <color name="warning_yellow">#FFC107</color> <!-- For warnings -->
+
+    <!-- Extra Colors -->
+    <color name="danger_red">#FF4D4D</color> <!-- Logout button -->
+    <color name="primary_gray">#E9ECEF</color> <!-- Optional light gray for borders -->
+
+    <!-- Material Design Colors -->
+    <color name="purple_200">#BB86FC</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+
+</resources>

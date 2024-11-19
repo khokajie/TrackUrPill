@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_gray"
+    android:padding="16dp">
+
+    <!-- Medication Photo -->
+    <ImageView
+        android:id="@+id/medicationPhoto"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:contentDescription="Medication Photo"
+        android:scaleType="centerCrop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_medication_placeholder" />
+
+    <!-- Medication Name -->
+    <TextView
+        android:id="@+id/medicationName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Paracetamol"
+        android:textColor="@color/primary_blue"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/medicationPhoto"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp" />
+
+    <!-- Dosage -->
+    <TextView
+        android:id="@+id/medicationDosage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Dosage: 500 mg"
+        android:textColor="@color/text_dark_gray"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/medicationName"
+        android:layout_marginTop="8dp" />
+
+    <!-- Expiration Date -->
+    <TextView
+        android:id="@+id/expirationDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Expiration Date: 12/31/2023"
+        android:textColor="@color/text_dark_gray"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/medicationDosage"
+        android:layout_marginTop="8dp" />
+
+    <!-- Stock Level -->
+    <TextView
+        android:id="@+id/stockLevel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stock Level: 20"
+        android:textColor="@color/text_dark_gray"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/expirationDate"
+        android:layout_marginTop="8dp" />
+
+    <!-- RecyclerView for Reminders -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewReminders"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/stockLevel"
+        app:layout_constraintBottom_toTopOf="@id/addReminderButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/reminder_item" />
+
+    <!-- Add Reminder Button -->
+    <Button
+        android:id="@+id/addReminderButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="48dp"
+        android:backgroundTint="@color/primary_blue"
+        android:text="Add Reminder"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/recyclerViewReminders" />
+</androidx.constraintlayout.widget.ConstraintLayout>
