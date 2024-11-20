@@ -4,6 +4,7 @@ import com.google.firebase.firestore.Blob
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.sql.Time
 import java.util.Date
 
 
@@ -58,20 +59,25 @@ data class Medication(
     var dosage: String = "",
     var expirationDate: Date? = null,
     var stockLevel: Int = 0,
+    var instruction: String = "",
     var medicationPhoto: Blob? = null, // Use Blob for binary data
     var userId: String = "" // Link to User (Patient)
 )
 
 
-// Reminder Data Model
 data class Reminder(
     @DocumentId
     var reminderId: String = "",
-    var reminderTime: Date? = null,
-    var frequency: String = "", // e.g., Daily, Weekly
-    var status: String = "", // e.g., Active, Completed
+    var date: String? = null, // Stores the date for "Once" reminders (format: MM/dd/yyyy)
+    var hour: Int = 0,       // Stores the hour of the reminder
+    var minute: Int = 0,     // Stores the minute of the reminder
+    var frequency: String = "", // e.g., Daily, Weekly, Once
+    var status: String = "",    // e.g., Active, Completed
+    var day: String? = null,    // Optional: Stores the day for weekly reminders
     var medicationId: String = "" // Link to Medication
 )
+
+
 
 // Health Record Data Model
 data class HealthRecord(

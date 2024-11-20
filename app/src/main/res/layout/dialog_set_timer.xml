@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- res/layout/dialog_set_timer.xml -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -7,12 +6,14 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- Time Picker -->
     <TimePicker
         android:id="@+id/timePicker"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:timePickerMode="spinner" />
 
+    <!-- Frequency Selector -->
     <Spinner
         android:id="@+id/frequencySpinner"
         android:layout_width="match_parent"
@@ -20,6 +21,24 @@
         android:layout_marginTop="16dp"
         android:entries="@array/frequency_options" />
 
+    <!-- Date Picker (for Once) -->
+    <DatePicker
+        android:id="@+id/datePicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone" />
+
+    <!-- Day Picker (for Weekly) -->
+    <Spinner
+        android:id="@+id/dayPicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:entries="@array/days_of_week" />
+
+    <!-- Status Selector -->
     <Spinner
         android:id="@+id/statusSpinner"
         android:layout_width="match_parent"

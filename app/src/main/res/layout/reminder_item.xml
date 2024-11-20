@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:padding="12dp">
 
+        <!-- Reminder Time -->
         <TextView
             android:id="@+id/reminderTime"
             android:layout_width="0dp"
@@ -26,6 +27,7 @@
             app:layout_constraintEnd_toStartOf="@id/deleteReminderButton"
             android:layout_marginEnd="16dp" />
 
+        <!-- Reminder Frequency -->
         <TextView
             android:id="@+id/reminderFrequency"
             android:layout_width="wrap_content"
@@ -37,6 +39,20 @@
             app:layout_constraintTop_toBottomOf="@id/reminderTime"
             android:layout_marginTop="4dp"/>
 
+        <!-- Reminder Day (For Weekly Reminders) -->
+        <TextView
+            android:id="@+id/reminderDay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Monday"
+            android:textColor="@color/text_light_gray"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="@id/reminderFrequency"
+            app:layout_constraintTop_toBottomOf="@id/reminderFrequency"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+        <!-- Delete Reminder Button -->
         <ImageButton
             android:id="@+id/deleteReminderButton"
             android:layout_width="48dp"

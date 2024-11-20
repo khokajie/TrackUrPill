@@ -3,13 +3,23 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
 
     <string-array name="frequency_options">
+        <item>Once</item>
         <item>Daily</item>
         <item>Weekly</item>
-        <item>Monthly</item>
     </string-array>
 
     <string-array name="status_options">
         <item>Active</item>
         <item>Completed</item>
+    </string-array>
+
+    <string-array name="days_of_week">
+        <item>Sunday</item>
+        <item>Monday</item>
+        <item>Tuesday</item>
+        <item>Wednesday</item>
+        <item>Thursday</item>
+        <item>Friday</item>
+        <item>Saturday</item>
     </string-array>
 </resources>

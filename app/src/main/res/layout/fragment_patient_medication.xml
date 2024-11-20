@@ -20,11 +20,12 @@
         android:id="@+id/fabAddMedication"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:contentDescription="Add Medication"
         android:layout_margin="16dp"
         android:backgroundTint="@color/primary_blue"
+        android:contentDescription="Add Medication"
         android:src="@drawable/ic_add"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@android:color/white" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

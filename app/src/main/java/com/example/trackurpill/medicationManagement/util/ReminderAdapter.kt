@@ -1,14 +1,13 @@
 package com.example.trackurpill.medicationManagement.util
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.data.Reminder
 import com.example.trackurpill.databinding.ReminderItemBinding
-import java.text.SimpleDateFormat
-import java.util.*
 
 class ReminderAdapter(val onDelete: (Reminder) -> Unit) :
     ListAdapter<Reminder, ReminderAdapter.ViewHolder>(DiffCallback) {
@@ -33,10 +32,20 @@ class ReminderAdapter(val onDelete: (Reminder) -> Unit) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val reminder = getItem(position)
-        val dateFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
 
-        holder.binding.reminderTime.text = dateFormat.format(reminder.reminderTime)
-        holder.binding.reminderFrequency.text = reminder.frequency
+        val timeFormat = String.format("%02d:%02d", reminder.hour, reminder.minute)
+        val dateFormat = reminder.date ?: "" // Show date only if available
+
+        holder.binding.reminderTime.text = if (reminder.frequency == "Once") {
+            "$dateFormat at $timeFormat"
+        } else {
+            timeFormat
+        }
+
+        holder.binding.reminderFrequency.text = when (reminder.frequency) {
+            "Weekly" -> "Weekly on ${reminder.day}"
+            else -> reminder.frequency
+        }
 
         holder.binding.deleteReminderButton.setOnClickListener {
             onDelete(reminder)

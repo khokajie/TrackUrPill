@@ -73,11 +73,11 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
         list = list.filter { it.medicationId == medicationId || medicationId.isEmpty() }
 
         // Sort by field
-        list = when (field) {
+        /*list = when (field) {
             "reminderTime" -> list.sortedBy { it.reminderTime }
             "frequency"    -> list.sortedBy { it.frequency }
             else           -> list
-        }
+        }*/
 
         // Reverse the list if needed
         if (reverse) list = list.reversed()
