@@ -26,21 +26,20 @@ class MainActivity : AppCompatActivity() {
     private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
     private lateinit var appBarConfiguration: AppBarConfiguration
 
-    private val authViewModel: AuthViewModel by viewModels()
     private val userViewModel: LoggedInUserViewModel by viewModels()
     private val medicationViewModel: PatientMedicationViewModel by viewModels()
 
     private val patientDestinations = setOf(
         R.id.patientMedicationFragment,
-        R.id.patientHealthTrackingFragment,
-        R.id.userProfile
+        R.id.healthHistoryFragment,
+        R.id.userProfileFragment
     )
 
     private val caregiverDestinations = setOf(
         R.id.patientMedicationFragment,
         R.id.caregiverMonitorFragment,
         R.id.patientHealthTrackingFragment,
-        R.id.userProfile
+        R.id.userProfileFragment
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

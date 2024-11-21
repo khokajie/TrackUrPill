@@ -36,16 +36,28 @@
         tools:layout="@layout/fragment_caregiver_monitor" />
 
     <fragment
-        android:id="@+id/userProfile"
+        android:id="@+id/userProfileFragment"
         android:name="com.example.trackurpill.userManagement.ui.UserProfile"
         android:label="UserProfile"
         tools:layout="@layout/fragment_user_profile" />
 
     <fragment
-        android:id="@+id/medicationDetails"
+        android:id="@+id/medicationDetailsFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.MedicationDetailsFragment"
         android:label="MedicationDetails"
         tools:layout="@layout/fragment_medication_details" />
+
+    <fragment
+        android:id="@+id/healthHistoryFragment"
+        android:name="com.example.trackurpill.healthTrackingManagement.ui.HealthHistoryFragment"
+        android:label="HealthHistory"
+        tools:layout="@layout/fragment_health_history" />
+
+    <fragment
+        android:id="@+id/addHealthHistoryFragment"
+        android:name="com.example.trackurpill.healthTrackingManagement.ui.AddHealthHistoryFragment"
+        android:label="AddHealthHistory"
+        tools:layout="@layout/fragment_add_health_history" />
 
 
 </navigation>

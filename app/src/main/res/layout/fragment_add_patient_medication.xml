@@ -11,8 +11,8 @@
     <!-- Circular Medication Photo Placeholder -->
     <FrameLayout
         android:id="@+id/photoContainer"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
         android:layout_marginTop="16dp"
         android:background="@drawable/circle_background"
         app:tint="@android:color/black"
@@ -32,8 +32,8 @@
 
         <ImageView
             android:id="@+id/iconAddPhoto"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:layout_gravity="center"
             android:contentDescription="Add Photo Icon"
             android:src="@drawable/ic_medicine"
@@ -45,9 +45,10 @@
         android:id="@+id/clickToAdd"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:text="Click to add medication photo"
         android:textColor="@color/primary_blue"
-        android:textSize="16sp"
+        android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -58,7 +59,9 @@
         android:id="@+id/txtLayoutMedicationName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
         android:layout_marginTop="24dp"
+        android:layout_marginEnd="8dp"
         android:hint="Medication Name"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -77,6 +80,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:hint="Dosage (e.g., 1 tablet)"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -95,6 +100,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:hint="Instructions (e.g., Take after meals)"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -113,6 +120,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:hint="Stock Level"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -131,6 +140,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:hint="Expiration Date (MM/DD/YYYY)"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -145,7 +156,7 @@
     </com.google.android.material.textfield.TextInputLayout>
 
     <!-- Add Medication Button -->
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnAddMedication"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -153,9 +164,12 @@
         android:layout_marginTop="32dp"
         android:layout_marginEnd="64dp"
         android:backgroundTint="@color/primary_blue"
+        android:padding="12dp"
         android:text="Add Medication"
+        android:textSize="18sp"
         android:textColor="@color/white"
         android:textStyle="bold"
+        app:cornerRadius="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/txtLayoutExpirationDate" />

@@ -2,13 +2,9 @@ package com.example.trackurpill.medicationManagement.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
-import androidx.core.view.MenuProvider
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
@@ -17,14 +13,16 @@ import com.example.trackurpill.databinding.FragmentPatientMedicationBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
 import com.example.trackurpill.medicationManagement.util.MedicationAdapter
 import com.google.firebase.auth.FirebaseAuth
-import androidx.lifecycle.Lifecycle
-
 
 class PatientMedicationFragment : Fragment() {
 
     private lateinit var binding: FragmentPatientMedicationBinding
     private val nav by lazy { findNavController() }
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
+    private lateinit var adapter: MedicationAdapter
+
+    private var isSearchViewFocused = false
+    private var patientId: String? = null // To distinguish between caregiver and patient views
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -32,76 +30,75 @@ class PatientMedicationFragment : Fragment() {
     ): View {
         binding = FragmentPatientMedicationBinding.inflate(inflater, container, false)
 
-        // Add MenuProvider to control menu visibility for this fragment
-        requireActivity().addMenuProvider(object : MenuProvider {
-            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
-                menu.clear() // Clear existing menu to avoid duplication
-                menuInflater.inflate(R.menu.top_app_bar_menu, menu) // Inflate the search menu
-            }
-
-            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                return when (menuItem.itemId) {
-                    R.id.menu_search -> {
-                        // Handle the search action
-                        Toast.makeText(requireContext(), "Search clicked!", Toast.LENGTH_SHORT).show()
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
-
-        val firebaseAuth = FirebaseAuth.getInstance()
+        // Retrieve the optional patientId argument
+        patientId = arguments?.getString("patientId")
 
         // Set up RecyclerView adapter
-        val adapter = MedicationAdapter { holder, medication ->
-            holder.binding.root.setOnClickListener { showMedicationDetails(medication.medicationId) }
+        adapter = MedicationAdapter { holder, medication ->
+            holder.binding.root.setOnClickListener {
+                nav.navigate(
+                    R.id.medicationDetailsFragment,
+                    Bundle().apply { putString("medicationId", medication.medicationId) }
+                )
+            }
         }
         binding.recyclerViewMedications.adapter = adapter
 
-        val currentUserId = firebaseAuth.currentUser?.uid
-        if (currentUserId != null) {
-            medicationVM.getMedicationLD().observe(viewLifecycleOwner) { medications ->
-                println("Medications received: $medications")
-                if (medications != null) {
-                    val filteredMedications = medications.filter { it.userId == currentUserId }
-                    adapter.submitList(filteredMedications)
-                } else {
-                    println("Medications list is null")
-                    adapter.submitList(emptyList())
-                }
-            }
+        // Determine whose medications to load
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
 
+        if (targetUserId != null) {
+            medicationVM.getMedicationLD().observe(viewLifecycleOwner) { medications ->
+                val filteredMedications = medications?.filter { it.userId == targetUserId } ?: emptyList()
+
+                if (filteredMedications.isEmpty()) {
+                    binding.noRecordText.visibility = View.VISIBLE
+                } else {
+                    binding.noRecordText.visibility = View.GONE
+                }
+                adapter.submitFullList(filteredMedications)
+            }
         } else {
-            // Handle the case where the user is not logged in
-            println("Error: Current user is null.")
+            binding.noRecordText.visibility = View.VISIBLE
+            adapter.submitFullList(emptyList())
         }
+
         // Set up FAB click listener
         binding.fabAddMedication.setOnClickListener {
-            nav.navigate(R.id.addPatientMedicationFragment)
+            if (patientId != null) {
+                nav.navigate(
+                    R.id.addPatientMedicationFragment,
+                    Bundle().apply { putString("patientId", patientId) }
+                )
+            } else {
+                nav.navigate(R.id.addPatientMedicationFragment)
+            }
+
+        }
+
+        binding.searchViewMedications.clearFocus()
+
+        // Set up SearchView functionality
+        binding.searchViewMedications.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return false
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                if (isSearchViewFocused) { // Trigger filtering only when SearchView is focused
+                    adapter.filter.filter(newText)
+                }
+                return true
+            }
+        })
+
+        // Set focus change listener to monitor user interaction
+        binding.searchViewMedications.setOnQueryTextFocusChangeListener { _, hasFocus ->
+            isSearchViewFocused = hasFocus
         }
 
         return binding.root
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.menu_search -> {
-                // Handle search action
-                Toast.makeText(requireContext(), "Search clicked!", Toast.LENGTH_SHORT).show()
-                return true
-            }
-        }
-        return super.onOptionsItemSelected(item)
-    }
-
-
-    private fun showMedicationDetails(medicationId: String) {
-        nav.navigate(
-            R.id.medicationDetails,
-            Bundle().apply { putString("medicationId", medicationId) }
-        )
-    }
 }
-
-

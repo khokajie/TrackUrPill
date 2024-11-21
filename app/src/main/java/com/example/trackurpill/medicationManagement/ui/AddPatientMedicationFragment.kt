@@ -1,10 +1,10 @@
 package com.example.trackurpill.medicationManagement.ui
 
 import android.app.DatePickerDialog
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -12,10 +12,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
+import com.example.trackurpill.R
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
-import com.google.firebase.auth.FirebaseAuth
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Blob
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -28,6 +30,7 @@ class AddPatientMedicationFragment : Fragment() {
     private val firebaseAuth = FirebaseAuth.getInstance()
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
+    private var patientId: String? = null // To distinguish between caregiver and patient views
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -35,12 +38,21 @@ class AddPatientMedicationFragment : Fragment() {
     ): View {
         binding = FragmentAddPatientMedicationBinding.inflate(inflater, container, false)
 
+        // Retrieve the optional patientId argument
+        patientId = arguments?.getString("patientId")
+
+        // Determine whose medications to load
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
+
         // Handle photo upload
         binding.clickToAdd.setOnClickListener { pickImage() }
+        binding.photoContainer.setOnClickListener { pickImage() }
 
         // Handle expiration date picker
         binding.txtExpirationDate.setOnClickListener { showDatePicker() }
 
+        // Handle Add Medication button click
         binding.btnAddMedication.setOnClickListener {
             val medicationName = binding.txtMedicationName.text.toString().trim()
             val dosage = binding.txtDosage.text.toString().trim()
@@ -61,7 +73,7 @@ class AddPatientMedicationFragment : Fragment() {
                 expirationDate = expirationDate,
                 stockLevel = stockLevel.toInt(),
                 medicationPhoto = medicationPhotoBlob,
-                userId = firebaseAuth.currentUser?.uid.orEmpty()
+                userId = targetUserId.toString()
             )
 
             // Save medication
@@ -83,7 +95,18 @@ class AddPatientMedicationFragment : Fragment() {
             val byteArray = inputStream?.readBytes()
             if (byteArray != null) {
                 medicationPhotoBlob = Blob.fromBytes(byteArray)
-                binding.imgMedicationPhoto.setImageURI(uri) // Show image preview
+
+                // Set the selected image into imgMedicationPhoto
+                binding.imgMedicationPhoto.apply {
+                    visibility = View.VISIBLE // Make the ImageView visible
+                    setImageURI(uri) // Display the selected image
+                }
+
+                // Hide the placeholder icon
+                binding.iconAddPhoto.visibility = View.GONE
+                binding.clickToAdd.text = "Change photo"
+            } else {
+                Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
@@ -11,7 +10,9 @@
         android:id="@+id/timePicker"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:timePickerMode="spinner" />
+        android:timePickerMode="spinner"
+        android:layout_marginTop="8dp"
+        android:textSize="18sp" />
 
     <!-- Frequency Selector -->
     <Spinner
@@ -19,7 +20,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:entries="@array/frequency_options" />
+        android:entries="@array/frequency_options"
+        android:textSize="18sp" />
 
     <!-- Date Picker (for Once) -->
     <DatePicker
@@ -27,7 +29,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:visibility="gone" />
+        android:visibility="gone"
+        android:textSize="18sp" />
 
     <!-- Day Picker (for Weekly) -->
     <Spinner
@@ -35,8 +38,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:entries="@array/days_of_week"
         android:visibility="gone"
-        android:entries="@array/days_of_week" />
+        android:textSize="18sp" />
 
     <!-- Status Selector -->
     <Spinner
@@ -44,5 +48,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:entries="@array/status_options" />
+        android:entries="@array/status_options"
+        android:textSize="18sp" />
 </LinearLayout>

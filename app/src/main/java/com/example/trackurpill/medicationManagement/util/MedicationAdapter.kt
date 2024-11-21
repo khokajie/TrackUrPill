@@ -2,6 +2,8 @@ package com.example.trackurpill.medicationManagement.util
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.Filter
+import android.widget.Filterable
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -13,8 +15,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MedicationAdapter(
-    val onItemClick: (ViewHolder, Medication) -> Unit = { _, _ -> }
-) : ListAdapter<Medication, MedicationAdapter.ViewHolder>(Diff) {
+    private val onItemClick: (ViewHolder, Medication) -> Unit = { _, _ -> }
+) : ListAdapter<Medication, MedicationAdapter.ViewHolder>(Diff), Filterable {
+
+    private var allMedications: List<Medication> = emptyList()
 
     companion object Diff : DiffUtil.ItemCallback<Medication>() {
         override fun areItemsTheSame(a: Medication, b: Medication) =
@@ -35,8 +39,6 @@ class MedicationAdapter(
         val medication = getItem(position)
         holder.binding.apply {
             title.text = medication.medicationName
-            dosage.text = "Dosage: ${medication.dosage}"
-            stock.text = "Stock: ${medication.stockLevel}"
             expiration.text = "Expires: ${
                 medication.expirationDate?.let {
                     SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(it)
@@ -55,10 +57,33 @@ class MedicationAdapter(
             }
 
             // Set onClick action
-            onItemClick(holder, medication)
+            root.setOnClickListener { onItemClick(holder, medication) }
+        }
+    }
+
+    fun submitFullList(list: List<Medication>) {
+        allMedications = list
+        submitList(list)
+    }
+
+    override fun getFilter(): Filter {
+        return object : Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                val filteredList = if (constraint.isNullOrEmpty()) {
+                    allMedications
+                } else {
+                    val filterPattern = constraint.toString().lowercase(Locale.getDefault()).trim()
+                    allMedications.filter {
+                        it.medicationName.lowercase(Locale.getDefault()).contains(filterPattern)
+                    }
+                }
+                return FilterResults().apply { values = filteredList }
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                submitList(results?.values as? List<Medication>)
+            }
         }
     }
 }
-
-
-

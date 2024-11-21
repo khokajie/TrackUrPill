@@ -8,110 +8,166 @@
     android:background="@color/background_gray"
     android:padding="16dp">
 
-    <!-- Medication Photo -->
-    <ImageView
-        android:id="@+id/medicationPhoto"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:contentDescription="Medication Photo"
-        android:scaleType="centerCrop"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:src="@drawable/ic_medication_placeholder" />
-
-    <!-- Medication Name -->
-    <TextView
-        android:id="@+id/medicationName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Paracetamol"
-        android:textColor="@color/primary_blue"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/medicationPhoto"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp" />
-
-    <!-- Dosage -->
-    <TextView
-        android:id="@+id/medicationDosage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Dosage: 500 mg"
-        android:textColor="@color/text_dark_gray"
-        android:textSize="16sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/medicationName"
-        android:layout_marginTop="8dp" />
-
-    <!-- Expiration Date -->
-    <TextView
-        android:id="@+id/expirationDate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Expiration Date: 12/31/2023"
-        android:textColor="@color/text_dark_gray"
-        android:textSize="16sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/medicationDosage"
-        android:layout_marginTop="8dp" />
-
-    <!-- Stock Level -->
-    <TextView
-        android:id="@+id/stockLevel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stock Level: 20"
-        android:textColor="@color/text_dark_gray"
-        android:textSize="16sp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/expirationDate"
-        android:layout_marginTop="8dp" />
-
-    <!-- Add Reminder Button -->
-    <Button
-        android:id="@+id/deleteMedicationButton"
+    <!-- Medication Details Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/medicationCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="48dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="48dp"
-        android:backgroundTint="@color/error_red"
-        android:text="Delete"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/primary_blue"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/stockLevel" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+            <!-- Medication Photo -->
+            <ImageView
+                android:id="@+id/medicationPhoto"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginEnd="16dp"
+                android:contentDescription="Medication Photo"
+                android:scaleType="centerCrop"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/medicationDetailsGroup"
+                tools:src="@drawable/ic_medication_placeholder" />
+
+            <!-- Medication Details -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/medicationDetailsGroup"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:layout_constraintStart_toEndOf="@id/medicationPhoto"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- Medication Name -->
+                <TextView
+                    android:id="@+id/medicationName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Paracetamol"
+                    android:textColor="@color/primary_blue"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <!-- Dosage -->
+                <TextView
+                    android:id="@+id/medicationDosage"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Dosage: 500 mg"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/medicationName"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Expiration Date -->
+                <TextView
+                    android:id="@+id/expirationDate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Expires: 12/31/2023"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/medicationDosage"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Stock Level -->
+                <TextView
+                    android:id="@+id/stockLevel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Stock Level: 20"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/expirationDate"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Instructions -->
+                <TextView
+                    android:id="@+id/instruction"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="Instruction: Take after meals"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/stockLevel"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="8dp" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- RecyclerView for Reminders -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewReminders"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        app:layout_constraintBottom_toTopOf="@id/addReminderButton"
+        android:layout_marginEnd="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/deleteMedicationButton"
+        app:layout_constraintBottom_toTopOf="@+id/addReminderButton"
         tools:listitem="@layout/reminder_item" />
 
-    <!-- Add Reminder Button -->
-    <Button
+        <!-- Add Reminder Button -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/addReminderButton"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="48dp"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="48dp"
+        android:layout_weight="1"
         android:backgroundTint="@color/primary_blue"
         android:text="Add Reminder"
         android:textColor="@color/white"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/recyclerViewReminders" />
+        app:layout_constraintTop_toBottomOf="@+id/recyclerViewReminders" />
+
+        <!-- Delete Medication Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/deleteMedicationButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:backgroundTint="@color/error_red"
+        android:text="Delete"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/medicationCard" />
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

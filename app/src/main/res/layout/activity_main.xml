@@ -16,7 +16,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-    <!-- Top App Bar Container -->
+        <!-- Top App Bar Container -->
         <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -30,12 +30,11 @@
                 android:background="@android:color/transparent"
                 app:title="TrackUrPill"
                 app:titleTextAppearance="@style/TopAppBarTitleTextStyle"
-                app:logo="@drawable/baseline_medical_information_24"
                 app:titleTextColor="@color/white"
+                app:logo="@drawable/baseline_medical_information_24"
                 app:titleMarginStart="32dp"
-                app:menu="@menu/top_app_bar_menu" />
+            app:menu="@menu/top_app_bar_menu" />
         </com.google.android.material.appbar.AppBarLayout>
-
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
