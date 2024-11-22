@@ -95,7 +95,7 @@ class HealthRecordAdapter(
 
             // BMI
             if (healthRecord.bmi > 0) {
-                txtBmi.text = "BMI: ${healthRecord.bmi}"
+                txtBmi.text = String.format("BMI: %.1f", healthRecord.bmi)
                 containerBmi.visibility = View.VISIBLE
             } else {
                 containerBmi.visibility = View.GONE

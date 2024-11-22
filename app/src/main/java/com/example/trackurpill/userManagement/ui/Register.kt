@@ -93,8 +93,8 @@ class Register : Fragment() {
                         userId = "", // To be generated in ViewModel
                         userName = username,
                         userEmail = email,
-                        userPassword = "", // Avoid storing raw password
                         userAge = 0,
+                        userPhoto = null,
                         isCaregiver = false
                     )
                 } else {
@@ -102,9 +102,9 @@ class Register : Fragment() {
                         userId = "", // To be generated in ViewModel
                         userName = username,
                         userEmail = email,
-                        userPassword = "", // Avoid storing raw password
                         userAge = 0,
                         isCaregiver = true,
+                        userPhoto = null,
                         patientList = emptyList()
                     )
                 }

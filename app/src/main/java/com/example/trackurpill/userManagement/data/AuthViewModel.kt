@@ -102,18 +102,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Password Reset
-    suspend fun resetPassword(email: String): Boolean {
-        return try {
-            firebaseAuth.sendPasswordResetEmail(email).await()
-            true
-        } catch (e: Exception) {
-            println("Password reset failed: ${e.message}")
-            false
-        }
-    }
-
-    // ---------------------------------------------------------------------------------------------
     // Utility Functions
     suspend fun generateNewUserId(role: String): String {
         val collection = if (role == "Patient") PATIENT else CAREGIVER

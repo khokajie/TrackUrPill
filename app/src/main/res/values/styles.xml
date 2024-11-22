@@ -11,4 +11,9 @@
         <item name="cornerSize">8dp</item> <!-- Adjust corner size as needed -->
     </style>
 
+    <style name="CustomShapeAppearance2" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item> <!-- Ensures the shape is a perfect circle -->
+    </style>
+
 </resources>

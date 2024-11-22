@@ -6,10 +6,10 @@
     <item android:id="@+id/caregiverMonitorFragment"
         android:icon="@drawable/ic_monitor"
         android:title="Monitor" />
-    <item android:id="@+id/patientHealthTrackingFragment"
+    <item android:id="@+id/healthHistoryFragment"
         android:icon="@drawable/ic_health_tracking"
         android:title="Health Tracking" />
-    <item android:id="@+id/userProfile"
+    <item android:id="@+id/userProfileFragment"
         android:icon="@drawable/ic_profile"
         android:title="Profile" />
 </menu>

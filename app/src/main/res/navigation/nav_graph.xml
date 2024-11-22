@@ -59,5 +59,11 @@
         android:label="AddHealthHistory"
         tools:layout="@layout/fragment_add_health_history" />
 
+    <fragment
+        android:id="@+id/editProfileFragment"
+        android:name="com.example.trackurpill.userManagement.ui.EditProfile"
+        android:label="EditProfile"
+        tools:layout="@layout/fragment_edit_profile" />
+
 
 </navigation>

@@ -32,10 +32,14 @@
                 android:layout_width="100dp"
                 android:layout_height="100dp"
                 android:contentDescription="Profile Picture"
+                android:padding="2dp"
+                android:scaleType="centerCrop"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:shapeAppearanceOverlay="@style/CustomShapeAppearance"
+                app:shapeAppearanceOverlay="@style/CustomShapeAppearance2"
+                app:strokeColor="@color/primary_blue"
+                app:strokeWidth="2dp"
                 tools:srcCompat="@tools:sample/avatars" />
 
             <!-- User Name -->

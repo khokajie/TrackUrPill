@@ -57,12 +57,15 @@
     <!-- Medication Name Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/txtLayoutMedicationName"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:layout_marginTop="24dp"
         android:layout_marginEnd="8dp"
         android:hint="Medication Name"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeColor="@color/primary_blue"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/clickToAdd">
@@ -77,6 +80,9 @@
     <!-- Dosage Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/txtLayoutDosage"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeColor="@color/primary_blue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -97,6 +103,9 @@
     <!-- Instructions Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/txtLayoutInstructions"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeColor="@color/primary_blue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -117,6 +126,9 @@
     <!-- Stock Level Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/txtLayoutStockLevel"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeColor="@color/primary_blue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
@@ -137,6 +149,9 @@
     <!-- Expiration Date Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/txtLayoutExpirationDate"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxBackgroundColor="@android:color/transparent"
+        app:boxStrokeColor="@color/primary_blue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"

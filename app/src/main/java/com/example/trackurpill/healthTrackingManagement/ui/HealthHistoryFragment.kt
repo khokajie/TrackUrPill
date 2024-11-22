@@ -66,7 +66,7 @@ class HealthHistoryFragment : Fragment() {
 
                 // Update the UI with the latest valid record values
                 if (latestValidRecord != null) {
-                    binding.bmiValue.text = String.format("%.1f", latestValidRecord.bmi)
+                    binding.bmiValue.text = String.format("BMI\n%.1f", latestValidRecord.bmi)
                     binding.heightValue.text = "${latestValidRecord.height} cm"
                     binding.weightValue.text = "${latestValidRecord.weight} kg"
                 } else {
@@ -83,11 +83,6 @@ class HealthHistoryFragment : Fragment() {
             // If user ID is null, show no records and an empty list
             binding.noRecordText.visibility = View.VISIBLE
             adapter.submitList(emptyList())
-        }
-
-        // Observe filtered results if needed
-        healthHistoryVM.getResultLD().observe(viewLifecycleOwner) { filteredRecords ->
-            adapter.submitList(filteredRecords)
         }
 
         // Floating Action Button to add a new health record

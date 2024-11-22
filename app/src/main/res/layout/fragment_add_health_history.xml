@@ -84,6 +84,9 @@
             <!-- Weight Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutWeight"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -99,6 +102,9 @@
             <!-- Height Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutHeight"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -114,6 +120,9 @@
             <!-- Blood Pressure Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutBloodPressure"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -129,6 +138,9 @@
             <!-- Heart Rate Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutHeartRate"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -144,6 +156,9 @@
             <!-- Blood Sugar Levels Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutBloodSugarLevels"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -159,6 +174,9 @@
             <!-- Cholesterol Levels Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutCholesterolLevels"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
@@ -174,6 +192,9 @@
             <!-- Temperature Input -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/txtLayoutTemperature"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"

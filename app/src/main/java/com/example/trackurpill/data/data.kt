@@ -22,8 +22,8 @@ open class User(
     open var userId: String = "",
     open var userName: String = "",
     open var userEmail: String = "",
-    open var userPassword: String = "",
     open var userAge: Int = 0,
+    open var userPhoto: Blob? = null, // Use Blob for binary data
     open var isCaregiver: Boolean = false // Differentiates Patient and Caregiver
 )
 
@@ -33,10 +33,10 @@ data class Patient(
     override var userId: String = "",
     override var userName: String = "",
     override var userEmail: String = "",
-    override var userPassword: String = "",
     override var userAge: Int = 0,
+    override var userPhoto: Blob? = null,
     override var isCaregiver: Boolean = false
-) : User(userId, userName, userEmail, userPassword, userAge, isCaregiver)
+) : User(userId, userName, userEmail,  userAge, userPhoto, isCaregiver)
 
 // Caregiver Data Model
 data class Caregiver(
@@ -44,11 +44,11 @@ data class Caregiver(
     override var userId: String = "",
     override var userName: String = "",
     override var userEmail: String = "",
-    override var userPassword: String = "",
     override var userAge: Int = 0,
+    override var userPhoto: Blob? = null,
     override var isCaregiver: Boolean = true,
     var patientList: List<String> = emptyList() // IDs of assigned patients
-) : User(userId, userName, userEmail, userPassword, userAge, isCaregiver)
+) : User(userId, userName, userEmail, userAge, userPhoto, isCaregiver)
 
 
 // Medication Data Model
@@ -97,5 +97,5 @@ data class HealthRecord(
 
 data class LoggedInUser(
     var userType: String = "",
-    var userID: String = ""
+    var userId: String = ""
 )

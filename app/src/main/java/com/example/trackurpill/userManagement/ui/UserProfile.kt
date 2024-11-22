@@ -12,11 +12,13 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
 import com.example.trackurpill.R
 import com.example.trackurpill.data.AuthViewModel
 import com.example.trackurpill.databinding.FragmentUserProfileBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 
@@ -36,14 +38,25 @@ class UserProfile : Fragment() {
                 // Launch a coroutine to fetch user details
                 lifecycleScope.launch {
                     try {
-                        val userDetails = authViewModel.fetchUserDetails(loggedInUser.userType, loggedInUser.userID)
+                        val userDetails = authViewModel.fetchUserDetails(loggedInUser.userType, loggedInUser.userId)
                         if (userDetails != null) {
-                            binding.txtUserName.text = userDetails.userName
-                            binding.txtUserEmail.text = userDetails.userEmail
-                            if(userDetails.userAge == 0){
-                                binding.txtUserAge.text = "Not filled in yet"
-                            }else {
-                                binding.txtUserAge.text = userDetails.userAge.toString()
+                            binding.txtUserName.text = "Username: ${userDetails.userName}"
+                            binding.txtUserEmail.text = "Email: ${userDetails.userEmail}"
+                            binding.txtUserAge.text = if (userDetails.userAge == 0) {
+                                "Age: Not filled in yet"
+                            } else {
+                                "Age: ${userDetails.userAge}"
+                            }
+
+                            // Load medication photo
+                            if (userDetails.userPhoto != null) {
+                                val photoBytes = userDetails.userPhoto!!.toBytes() // Convert Blob to ByteArray
+                                Glide.with(binding.imgProfilePicture)
+                                    .load(photoBytes)
+                                    .placeholder(R.drawable.ic_profile) // Replace with your placeholder image
+                                    .into(binding.imgProfilePicture)
+                            } else {
+                                binding.imgProfilePicture.setImageResource(R.drawable.ic_profile) // Replace with your placeholder image
                             }
                         } else {
                             Toast.makeText(context, "Failed to load user details", Toast.LENGTH_SHORT).show()
@@ -57,7 +70,7 @@ class UserProfile : Fragment() {
 
         // Button Listeners
         binding.btnEditProfile.setOnClickListener {
-
+            nav.navigate(R.id.editProfileFragment)
         }
 
         binding.btnChangePassword.setOnClickListener {
