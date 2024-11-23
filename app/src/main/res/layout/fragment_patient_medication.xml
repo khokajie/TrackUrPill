@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    tools:context="medicationManagement.ui.PatientMedicationFragment">
+    android:padding="16dp">
 
     <!-- SearchView for filtering medications -->
     <androidx.appcompat.widget.SearchView
@@ -16,6 +15,7 @@
         android:background="@drawable/search_view_background"
         android:queryHint="Search medications"
         app:iconifiedByDefault="false"
+        android:focusable="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

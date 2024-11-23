@@ -33,10 +33,7 @@ class HealthHistoryFragment : Fragment() {
         // Retrieve the optional patientId argument
         patientId = arguments?.getString("patientId")
 
-        adapter = HealthRecordAdapter { healthRecord ->
-            healthHistoryVM.deleteHealthRecord(healthRecord.recordId)
-            Toast.makeText(requireContext(), "Record deleted", Toast.LENGTH_SHORT).show()
-        }
+        adapter = HealthRecordAdapter()
 
         binding.recyclerViewHealthRecords.apply {
             layoutManager = LinearLayoutManager(requireContext())
@@ -87,15 +84,10 @@ class HealthHistoryFragment : Fragment() {
 
         // Floating Action Button to add a new health record
         binding.fabAddHealthRecord.setOnClickListener {
-            Toast.makeText(requireContext(), "Navigate to add new record", Toast.LENGTH_SHORT).show()
-            if (patientId != null) {
                 nav.navigate(
                     R.id.addHealthHistoryFragment,
                     Bundle().apply { putString("patientId", patientId) }
                 )
-            } else {
-                nav.navigate(R.id.addHealthHistoryFragment)
-            }
         }
 
         return binding.root

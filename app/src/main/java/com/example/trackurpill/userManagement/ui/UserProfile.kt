@@ -18,6 +18,7 @@ import com.example.trackurpill.data.AuthViewModel
 import com.example.trackurpill.databinding.FragmentUserProfileBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -74,8 +75,71 @@ class UserProfile : Fragment() {
         }
 
         binding.btnChangePassword.setOnClickListener {
+            val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_change_password, null)
+            val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .setCancelable(false)
+                .create()
 
+            val currentPasswordInput = dialogView.findViewById<TextInputEditText>(R.id.currentPassword)
+            val newPasswordInput = dialogView.findViewById<TextInputEditText>(R.id.newPassword)
+            val confirmPasswordInput = dialogView.findViewById<TextInputEditText>(R.id.confirmPassword)
+            val btnCancel = dialogView.findViewById<View>(R.id.dialogCancelButton)
+            val btnSave = dialogView.findViewById<View>(R.id.dialogSaveButton)
+
+            btnCancel.setOnClickListener { dialog.dismiss() }
+
+            btnSave.setOnClickListener {
+                val currentPassword = currentPasswordInput.text.toString().trim()
+                val newPassword = newPasswordInput.text.toString().trim()
+                val confirmPassword = confirmPasswordInput.text.toString().trim()
+
+                if (currentPassword.isEmpty()) {
+                    currentPasswordInput.error = "Current password is required"
+                    return@setOnClickListener
+                }
+                if (newPassword.isEmpty()) {
+                    newPasswordInput.error = "New password is required"
+                    return@setOnClickListener
+                }
+                if (confirmPassword.isEmpty()) {
+                    confirmPasswordInput.error = "Confirm password is required"
+                    return@setOnClickListener
+                }
+                if (newPassword != confirmPassword) {
+                    confirmPasswordInput.error = "Passwords do not match"
+                    return@setOnClickListener
+                }
+
+                // Handle password update logic with Firebase
+                val user = FirebaseAuth.getInstance().currentUser
+                if (user != null) {
+                    val credential = FirebaseAuth.getInstance().signInWithEmailAndPassword(
+                        user.email!!,
+                        currentPassword
+                    )
+
+                    credential.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            user.updatePassword(newPassword)
+                                .addOnCompleteListener { updateTask ->
+                                    if (updateTask.isSuccessful) {
+                                        Toast.makeText(context, "Password updated successfully", Toast.LENGTH_SHORT).show()
+                                        dialog.dismiss()
+                                    } else {
+                                        Toast.makeText(context, "Failed to update password: ${updateTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                        } else {
+                            currentPasswordInput.error = "Incorrect current password"
+                        }
+                    }
+                }
+            }
+
+            dialog.show()
         }
+
 
         binding.btnLogout.setOnClickListener {
             authViewModel.logout()
@@ -87,4 +151,6 @@ class UserProfile : Fragment() {
 
         return binding.root
     }
+
+
 }

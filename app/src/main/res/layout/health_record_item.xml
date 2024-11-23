@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Date: 12/12/2023"
-            android:textColor="@android:color/black"
+            android:textColor="@color/primary_blue"
             android:textSize="22sp"
             android:textStyle="bold"
             android:visibility="visible" />

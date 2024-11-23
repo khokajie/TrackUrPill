@@ -32,8 +32,7 @@
                 app:titleTextAppearance="@style/TopAppBarTitleTextStyle"
                 app:titleTextColor="@color/white"
                 app:logo="@drawable/baseline_medical_information_24"
-                app:titleMarginStart="32dp"
-            app:menu="@menu/top_app_bar_menu" />
+                app:titleMarginStart="32dp" />
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout

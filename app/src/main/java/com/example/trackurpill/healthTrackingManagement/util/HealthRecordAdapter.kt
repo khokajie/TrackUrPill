@@ -11,9 +11,7 @@ import com.example.trackurpill.databinding.HealthRecordItemBinding
 import java.text.SimpleDateFormat
 import java.util.*
 
-class HealthRecordAdapter(
-    private val onDelete: (HealthRecord) -> Unit
-) : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback) {
+class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback) {
 
     companion object DiffCallback : DiffUtil.ItemCallback<HealthRecord>() {
         override fun areItemsTheSame(oldItem: HealthRecord, newItem: HealthRecord) =
@@ -109,10 +107,6 @@ class HealthRecordAdapter(
                 containerTemperature.visibility = View.GONE
             }
 
-            // Delete Button
-            /*deleteRecordButton.setOnClickListener {
-                onDelete(healthRecord)
-            }*/
         }
     }
 }

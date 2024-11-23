@@ -15,11 +15,13 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trackurpill.R
+import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.Reminder
 import com.example.trackurpill.databinding.FragmentMedicationDetailsBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
 import com.example.trackurpill.medicationManagement.data.ReminderViewModel
 import com.example.trackurpill.medicationManagement.util.ReminderAdapter
+import com.example.trackurpill.util.ReminderScheduler
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -42,29 +44,12 @@ class MedicationDetailsFragment : Fragment() {
 
         // Fetch medication details
         val medication = medicationVM.get(medicationId)
-        if (medication != null) {
-            binding.medicationName.text = medication.medicationName
-            binding.medicationDosage.text = "Dosage: ${medication.dosage}"
-            binding.expirationDate.text = "Expiration Date: ${
-                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(medication.expirationDate)
-            }"
-            binding.stockLevel.text = "Stock Level: ${medication.stockLevel}"
-
-            // Convert Blob to Bitmap and display the image
-            val medicationPhotoBlob = medication.medicationPhoto
-            if (medicationPhotoBlob != null) {
-                val bytes = medicationPhotoBlob.toBytes()
-                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                binding.medicationPhoto.setImageBitmap(bitmap)
-            } else {
-                binding.medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
-            }
-        }
+        medication?.let { populateMedicationDetails(it) }
 
         // Set up the ReminderAdapter
         val adapter = ReminderAdapter { reminder ->
-            // Handle delete reminder
             reminderVM.deleteReminder(reminder.reminderId)
+            ReminderScheduler.cancelReminder(requireContext(), reminder.reminderId)
         }
         binding.recyclerViewReminders.adapter = adapter
         binding.recyclerViewReminders.layoutManager = LinearLayoutManager(requireContext())
@@ -89,6 +74,23 @@ class MedicationDetailsFragment : Fragment() {
         return binding.root
     }
 
+    private fun populateMedicationDetails(medication: Medication) {
+        binding.medicationName.text = medication.medicationName
+        binding.medicationDosage.text = "Dosage: ${medication.dosage}"
+        binding.expirationDate.text = "Expiration Date: ${
+            medication.expirationDate?.let {
+                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(it)
+            } ?: "N/A"
+        }"
+        binding.stockLevel.text = "Stock Level: ${medication.stockLevel}"
+
+        medication.medicationPhoto?.let { blob ->
+            val bytes = blob.toBytes()
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            binding.medicationPhoto.setImageBitmap(bitmap)
+        } ?: binding.medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
+    }
+
     private fun showSetTimerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
 
@@ -99,8 +101,8 @@ class MedicationDetailsFragment : Fragment() {
         val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
 
         timePicker.setIs24HourView(true)
-        dayPicker.visibility = View.GONE // Default: hidden
-        datePicker.visibility = View.GONE // Default: hidden
+        dayPicker.visibility = View.GONE
+        datePicker.visibility = View.GONE
 
         frequencySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -145,7 +147,6 @@ class MedicationDetailsFragment : Fragment() {
                     dayPicker.selectedItem.toString()
                 } else null
 
-                // Create and save the reminder
                 val reminder = Reminder(
                     reminderId = UUID.randomUUID().toString(),
                     date = selectedDate,
@@ -158,11 +159,41 @@ class MedicationDetailsFragment : Fragment() {
                 )
 
                 reminderVM.setReminder(reminder)
+
+                // Schedule the reminder
+                when (selectedFrequency) {
+                    "Once" -> ReminderScheduler.scheduleReminderAt(
+                        context = requireContext(),
+                        reminderTimeMillis = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, hour)
+                            set(Calendar.MINUTE, minute)
+                            set(Calendar.SECOND, 0)
+                        }.timeInMillis,
+                        medicationName = binding.medicationName.text.toString(),
+                        medicationId = medicationId,
+                        dosage = binding.medicationDosage.text.toString()
+                    )
+                    "Daily" -> ReminderScheduler.scheduleDailyReminder(
+                        context = requireContext(),
+                        reminderHour = hour,
+                        reminderMinute = minute,
+                        medicationName = binding.medicationName.text.toString(),
+                        medicationId = medicationId,
+                        dosage = binding.medicationDosage.text.toString()
+                    )
+                    "Weekly" -> ReminderScheduler.scheduleWeeklyReminder(
+                        context = requireContext(),
+                        reminderHour = hour,
+                        reminderMinute = minute,
+                        dayOfWeek = dayPicker.selectedItemPosition + 1,
+                        medicationName = binding.medicationName.text.toString(),
+                        medicationId = medicationId,
+                        dosage = binding.medicationDosage.text.toString()
+                    )
+                }
             }
             .setNegativeButton("Cancel", null)
             .create()
             .show()
     }
-
-
 }

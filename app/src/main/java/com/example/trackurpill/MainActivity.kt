@@ -1,13 +1,18 @@
 package com.example.trackurpill
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationChannelCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
-import androidx.navigation.fragment.findNavController
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.trackurpill.data.LoggedInUser
@@ -17,7 +22,7 @@ import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
+    private lateinit var navController: NavController
     private lateinit var appBarConfiguration: AppBarConfiguration
 
     private val userViewModel: LoggedInUserViewModel by viewModels()
@@ -40,7 +45,14 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        createNotificationChannel()
+        checkAndRequestNotificationPermission()
+
         setSupportActionBar(binding.topAppBar)
+
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.host) as NavHostFragment
+        navController = navHostFragment.navController
 
         // Initialize ViewModel and observe user state
         userViewModel.init()
@@ -52,7 +64,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        binding.bottomNavigationView.setupWithNavController(nav)
+        setupBottomNavigation()
     }
 
     private fun configureNavigationBasedOnUserType(user: LoggedInUser) {
@@ -66,7 +78,7 @@ class MainActivity : AppCompatActivity() {
                 configureBottomNav(R.menu.caregiver_bottom_nav_menu)
             }
         }
-        setupActionBarWithNavController(nav, appBarConfiguration)
+        setupActionBarWithNavController(navController, appBarConfiguration)
         navigateBasedOnRole(user.userType)
         showBottomNavigation()
     }
@@ -80,9 +92,19 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNavigationView.inflateMenu(menuRes)
     }
 
+    private fun setupBottomNavigation() {
+        binding.bottomNavigationView.setOnItemSelectedListener { item ->
+            val destination = item.itemId
+            if (navController.currentDestination?.id != destination) {
+                navController.navigate(destination)
+            }
+            true
+        }
+    }
+
     private fun navigateToLogin() {
         hideBottomNavigation()
-        nav.navigate(R.id.loginFragment)
+        navController.navigate(R.id.loginFragment)
     }
 
     private fun showBottomNavigation() {
@@ -94,7 +116,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        return nav.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
+        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 
     private fun navigateBasedOnRole(role: String) {
@@ -103,8 +125,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             R.id.caregiverMonitorFragment
         }
-        if (nav.currentDestination?.id != destination) {
-            nav.navigate(destination)
+        if (navController.currentDestination?.id != destination) {
+            navController.navigate(destination)
         }
     }
 
@@ -116,5 +138,40 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.show()
     }
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannelCompat.Builder(
+                "REMINDER_CHANNEL",
+                NotificationManagerCompat.IMPORTANCE_HIGH
+            )
+                .setName("Medication Reminders")
+                .setDescription("Notifications for scheduled medication reminders")
+                .build()
 
+            NotificationManagerCompat.from(this).createNotificationChannel(channel)
+        }
+    }
+
+    private fun checkAndRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Notification permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }

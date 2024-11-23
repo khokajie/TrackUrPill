@@ -72,6 +72,7 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
         updateResult()
     }
 
+
     fun sort(field: String, reverse: Boolean) {
         this.field = field
         this.reverse = reverse

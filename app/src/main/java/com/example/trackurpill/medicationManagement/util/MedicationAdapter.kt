@@ -15,7 +15,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MedicationAdapter(
-    private val onItemClick: (ViewHolder, Medication) -> Unit = { _, _ -> }
+    private val onItemClick: (Medication) -> Unit = {}
 ) : ListAdapter<Medication, MedicationAdapter.ViewHolder>(Diff), Filterable {
 
     private var allMedications: List<Medication> = emptyList()
@@ -50,14 +50,14 @@ class MedicationAdapter(
                 val photoBytes = medication.medicationPhoto!!.toBytes() // Convert Blob to ByteArray
                 Glide.with(medicationPhoto.context)
                     .load(photoBytes)
-                    .placeholder(R.drawable.ic_medication_placeholder) // Replace with your placeholder image
+                    .placeholder(R.drawable.ic_medication_placeholder)
                     .into(medicationPhoto)
             } else {
-                medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder) // Replace with your placeholder image
+                medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
             }
 
-            // Set onClick action
-            root.setOnClickListener { onItemClick(holder, medication) }
+            // Set click listener
+            root.setOnClickListener { onItemClick(medication) }
         }
     }
 

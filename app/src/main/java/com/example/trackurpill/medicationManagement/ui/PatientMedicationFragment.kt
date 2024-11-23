@@ -21,8 +21,8 @@ class PatientMedicationFragment : Fragment() {
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
     private lateinit var adapter: MedicationAdapter
 
-    private var isSearchViewFocused = false
     private var patientId: String? = null // To distinguish between caregiver and patient views
+    private var searchQuery: String? = null // Preserve search query when navigating back
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -33,38 +33,10 @@ class PatientMedicationFragment : Fragment() {
         // Retrieve the optional patientId argument
         patientId = arguments?.getString("patientId")
 
-        // Set up RecyclerView adapter
-        adapter = MedicationAdapter { holder, medication ->
-            holder.binding.root.setOnClickListener {
-                nav.navigate(
-                    R.id.medicationDetailsFragment,
-                    Bundle().apply { putString("medicationId", medication.medicationId) }
-                )
-            }
-        }
-        binding.recyclerViewMedications.adapter = adapter
+        setupAdapter()
+        setupSearchView()
+        observeMedications()
 
-        // Determine whose medications to load
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-        val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
-
-        if (targetUserId != null) {
-            medicationVM.getMedicationLD().observe(viewLifecycleOwner) { medications ->
-                val filteredMedications = medications?.filter { it.userId == targetUserId } ?: emptyList()
-
-                if (filteredMedications.isEmpty()) {
-                    binding.noRecordText.visibility = View.VISIBLE
-                } else {
-                    binding.noRecordText.visibility = View.GONE
-                }
-                adapter.submitFullList(filteredMedications)
-            }
-        } else {
-            binding.noRecordText.visibility = View.VISIBLE
-            adapter.submitFullList(emptyList())
-        }
-
-        // Set up FAB click listener
         binding.fabAddMedication.setOnClickListener {
             if (patientId != null) {
                 nav.navigate(
@@ -74,31 +46,61 @@ class PatientMedicationFragment : Fragment() {
             } else {
                 nav.navigate(R.id.addPatientMedicationFragment)
             }
-
-        }
-
-        binding.searchViewMedications.clearFocus()
-
-        // Set up SearchView functionality
-        binding.searchViewMedications.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
-            }
-
-            override fun onQueryTextChange(newText: String?): Boolean {
-                if (isSearchViewFocused) { // Trigger filtering only when SearchView is focused
-                    adapter.filter.filter(newText)
-                }
-                return true
-            }
-        })
-
-        // Set focus change listener to monitor user interaction
-        binding.searchViewMedications.setOnQueryTextFocusChangeListener { _, hasFocus ->
-            isSearchViewFocused = hasFocus
         }
 
         return binding.root
     }
 
+    private fun setupAdapter() {
+        adapter = MedicationAdapter { medication ->
+            nav.navigate(
+                R.id.medicationDetailsFragment,
+                Bundle().apply { putString("medicationId", medication.medicationId) }
+            )
+        }
+        binding.recyclerViewMedications.adapter = adapter
+    }
+
+    private fun setupSearchView() {
+        binding.searchViewMedications.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean = false
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                searchQuery = newText // Save the search query
+                adapter.filter.filter(newText)
+                return true
+            }
+        })
+
+        binding.searchViewMedications.setOnCloseListener {
+            searchQuery = null // Reset search query when search is closed
+            true
+        }
+    }
+
+    private fun observeMedications() {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+        val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
+
+        if (targetUserId != null) {
+            medicationVM.getMedicationLD().observe(viewLifecycleOwner) { medications ->
+                val filteredMedications = medications?.filter { it.userId == targetUserId } ?: emptyList()
+
+                // Submit the filtered list only if it's non-null
+                adapter.submitFullList(filteredMedications)
+
+                // Apply the saved search query
+                searchQuery?.let {
+                    adapter.filter.filter(it)
+                }
+
+                // Update the visibility of the "No Records" text
+                binding.noRecordText.visibility = if (filteredMedications.isEmpty()) View.VISIBLE else View.GONE
+            }
+        } else {
+            // If targetUserId is null, show no records and clear the adapter
+            binding.noRecordText.visibility = View.VISIBLE
+            adapter.submitFullList(emptyList())
+        }
+    }
 }
