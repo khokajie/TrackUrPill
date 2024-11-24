@@ -27,7 +27,6 @@ class AddPatientMedicationFragment : Fragment() {
 
     private lateinit var binding: FragmentAddPatientMedicationBinding
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
-    private val firebaseAuth = FirebaseAuth.getInstance()
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
     private var patientId: String? = null // To distinguish between caregiver and patient views

@@ -1,7 +1,9 @@
 package com.example.trackurpill.medicationManagement.ui
 
+import android.app.DatePickerDialog
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +11,7 @@ import android.widget.AdapterView
 import android.widget.DatePicker
 import android.widget.Spinner
 import android.widget.TimePicker
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -22,6 +25,8 @@ import com.example.trackurpill.medicationManagement.data.PatientMedicationViewMo
 import com.example.trackurpill.medicationManagement.data.ReminderViewModel
 import com.example.trackurpill.medicationManagement.util.ReminderAdapter
 import com.example.trackurpill.util.ReminderScheduler
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,14 +44,10 @@ class MedicationDetailsFragment : Fragment() {
     ): View {
         binding = FragmentMedicationDetailsBinding.inflate(inflater, container, false)
 
-        // Get the medicationId from arguments
         medicationId = arguments?.getString("medicationId") ?: ""
 
-        // Fetch medication details
-        val medication = medicationVM.get(medicationId)
-        medication?.let { populateMedicationDetails(it) }
+        observeMedicationDetails()
 
-        // Set up the ReminderAdapter
         val adapter = ReminderAdapter { reminder ->
             reminderVM.deleteReminder(reminder.reminderId)
             ReminderScheduler.cancelReminder(requireContext(), reminder.reminderId)
@@ -54,41 +55,44 @@ class MedicationDetailsFragment : Fragment() {
         binding.recyclerViewReminders.adapter = adapter
         binding.recyclerViewReminders.layoutManager = LinearLayoutManager(requireContext())
 
-        // Observe reminders for this medication
         reminderVM.getReminderLD().observe(viewLifecycleOwner) { reminders ->
             val filteredReminders = reminders?.filter { it.medicationId == medicationId }
             adapter.submitList(filteredReminders ?: emptyList())
         }
 
-        // Handle Add Reminder Button
         binding.addReminderButton.setOnClickListener {
             showSetTimerDialog()
         }
 
-        // Handle Delete Medication Button
         binding.deleteMedicationButton.setOnClickListener {
             medicationVM.deleteMedication(medicationId)
             nav.navigateUp()
         }
 
+        binding.editMedicationButton.setOnClickListener {
+            showEditMedicationDialog()
+        }
+
         return binding.root
     }
 
-    private fun populateMedicationDetails(medication: Medication) {
-        binding.medicationName.text = medication.medicationName
-        binding.medicationDosage.text = "Dosage: ${medication.dosage}"
-        binding.expirationDate.text = "Expiration Date: ${
-            medication.expirationDate?.let {
-                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(it)
-            } ?: "N/A"
-        }"
-        binding.stockLevel.text = "Stock Level: ${medication.stockLevel}"
+    private fun observeMedicationDetails() {
+        medicationVM.getMedicationLiveData(medicationId).observe(viewLifecycleOwner) { medication ->
+            medication?.let {
+                binding.medicationName.text = it.medicationName
+                binding.medicationDosage.text = "Dosage: ${it.dosage}"
+                binding.expirationDate.text = "Expiration Date: " + (it.expirationDate?.let { date ->
+                    SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(date)
+                } ?: "N/A")
+                binding.stockLevel.text = "Stock Level: ${it.stockLevel}"
 
-        medication.medicationPhoto?.let { blob ->
-            val bytes = blob.toBytes()
-            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            binding.medicationPhoto.setImageBitmap(bitmap)
-        } ?: binding.medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
+                it.medicationPhoto?.let { blob ->
+                    val bytes = blob.toBytes()
+                    val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    binding.medicationPhoto.setImageBitmap(bitmap)
+                } ?: binding.medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
+            }
+        }
     }
 
     private fun showSetTimerDialog() {
@@ -96,7 +100,6 @@ class MedicationDetailsFragment : Fragment() {
 
         val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
         val frequencySpinner = dialogView.findViewById<Spinner>(R.id.frequencySpinner)
-        val statusSpinner = dialogView.findViewById<Spinner>(R.id.statusSpinner)
         val dayPicker = dialogView.findViewById<Spinner>(R.id.dayPicker)
         val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
 
@@ -107,15 +110,15 @@ class MedicationDetailsFragment : Fragment() {
         frequencySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
-                    0 -> { // Once
+                    0 -> {
                         datePicker.visibility = View.VISIBLE
                         dayPicker.visibility = View.GONE
                     }
-                    1 -> { // Daily
+                    1 -> {
                         datePicker.visibility = View.GONE
                         dayPicker.visibility = View.GONE
                     }
-                    2 -> { // Weekly
+                    2 -> {
                         datePicker.visibility = View.GONE
                         dayPicker.visibility = View.VISIBLE
                     }
@@ -132,15 +135,9 @@ class MedicationDetailsFragment : Fragment() {
                 val hour = timePicker.hour
                 val minute = timePicker.minute
                 val selectedFrequency = frequencySpinner.selectedItem.toString()
-                val selectedStatus = statusSpinner.selectedItem.toString()
 
                 val selectedDate = if (selectedFrequency == "Once") {
-                    String.format(
-                        "%02d/%02d/%04d",
-                        datePicker.month + 1,
-                        datePicker.dayOfMonth,
-                        datePicker.year
-                    )
+                    String.format("%02d/%02d/%04d", datePicker.month + 1, datePicker.dayOfMonth, datePicker.year)
                 } else null
 
                 val selectedDay = if (selectedFrequency == "Weekly") {
@@ -153,47 +150,120 @@ class MedicationDetailsFragment : Fragment() {
                     hour = hour,
                     minute = minute,
                     frequency = selectedFrequency,
-                    status = selectedStatus,
                     day = selectedDay,
                     medicationId = medicationId
                 )
 
                 reminderVM.setReminder(reminder)
 
-                // Schedule the reminder
                 when (selectedFrequency) {
-                    "Once" -> ReminderScheduler.scheduleReminderAt(
-                        context = requireContext(),
-                        reminderTimeMillis = Calendar.getInstance().apply {
+                    "Once" -> {
+                        val reminderTimeMillis = Calendar.getInstance().apply {
                             set(Calendar.HOUR_OF_DAY, hour)
                             set(Calendar.MINUTE, minute)
                             set(Calendar.SECOND, 0)
-                        }.timeInMillis,
-                        medicationName = binding.medicationName.text.toString(),
-                        medicationId = medicationId,
-                        dosage = binding.medicationDosage.text.toString()
-                    )
+                        }.timeInMillis
+                        ReminderScheduler.scheduleReminderAt(
+                            requireContext(),
+                            reminderTimeMillis,
+                            binding.medicationName.text.toString(),
+                            medicationId,
+                            binding.medicationDosage.text.toString()
+                        )
+                    }
                     "Daily" -> ReminderScheduler.scheduleDailyReminder(
-                        context = requireContext(),
-                        reminderHour = hour,
-                        reminderMinute = minute,
-                        medicationName = binding.medicationName.text.toString(),
-                        medicationId = medicationId,
-                        dosage = binding.medicationDosage.text.toString()
+                        requireContext(),
+                        hour,
+                        minute,
+                        binding.medicationName.text.toString(),
+                        medicationId,
+                        binding.medicationDosage.text.toString()
                     )
                     "Weekly" -> ReminderScheduler.scheduleWeeklyReminder(
-                        context = requireContext(),
-                        reminderHour = hour,
-                        reminderMinute = minute,
-                        dayOfWeek = dayPicker.selectedItemPosition + 1,
-                        medicationName = binding.medicationName.text.toString(),
-                        medicationId = medicationId,
-                        dosage = binding.medicationDosage.text.toString()
+                        requireContext(),
+                        hour,
+                        minute,
+                        dayPicker.selectedItemPosition + 1,
+                        binding.medicationName.text.toString(),
+                        medicationId,
+                        binding.medicationDosage.text.toString()
                     )
                 }
+                Toast.makeText(requireContext(), "Reminder set successfully", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .create()
             .show()
     }
+
+    private fun showEditMedicationDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_medication, null)
+
+        val medicationName = dialogView.findViewById<TextInputEditText>(R.id.medicationName)
+        val dosage = dialogView.findViewById<TextInputEditText>(R.id.dosage)
+        val expirationDate = dialogView.findViewById<TextInputEditText>(R.id.expirationDate)
+        val stockLevel = dialogView.findViewById<TextInputEditText>(R.id.stockLevel)
+        val saveButton = dialogView.findViewById<MaterialButton>(R.id.dialogSaveButton)
+        val cancelButton = dialogView.findViewById<MaterialButton>(R.id.dialogCancelButton)
+
+        // Pre-fill existing data
+        val currentMedication = medicationVM.get(medicationId)
+        currentMedication?.let {
+            medicationName.setText(it.medicationName)
+            dosage.setText(it.dosage)
+            expirationDate.setText(it.expirationDate?.let { date ->
+                SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(date)
+            })
+            stockLevel.setText(it.stockLevel.toString())
+        }
+
+        expirationDate.setOnClickListener {
+            val calendar = Calendar.getInstance()
+            DatePickerDialog(requireContext(), { _, year, month, dayOfMonth ->
+                val selectedDate = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }
+                if (selectedDate.before(Calendar.getInstance())) {
+                    Toast.makeText(requireContext(), "Date cannot be in the past", Toast.LENGTH_SHORT).show()
+                } else {
+                    expirationDate.setText(SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(selectedDate.time))
+                }
+            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+        }
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        saveButton.setOnClickListener {
+            val updatedName = medicationName.text.toString().trim()
+            val updatedDosage = dosage.text.toString().trim()
+            val updatedExpirationDate = expirationDate.text.toString().trim()
+            val updatedStockLevel = stockLevel.text.toString().trim()
+
+            if (updatedName.isEmpty() || updatedDosage.isEmpty() || updatedExpirationDate.isEmpty() || updatedStockLevel.isEmpty()) {
+                Toast.makeText(requireContext(), "All fields are required", Toast.LENGTH_SHORT).show()
+            } else if (updatedStockLevel.toIntOrNull() == null) {
+                Toast.makeText(requireContext(), "Stock level must be a number", Toast.LENGTH_SHORT).show()
+            } else {
+                val updatedMedication = currentMedication?.copy(
+                    medicationName = updatedName,
+                    dosage = updatedDosage,
+                    expirationDate = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(updatedExpirationDate),
+                    stockLevel = updatedStockLevel.toInt()
+                )
+                updatedMedication?.let { medicationVM.setMedication(it) }
+                Toast.makeText(requireContext(), "Medication updated", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+
+        cancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
 }

@@ -82,7 +82,7 @@
                     android:id="@+id/expirationDate"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="Expires: 12/31/2023"
+                    android:text="Expiration Date: 12/31/2023"
                     android:textColor="@color/text_dark_gray"
                     android:textSize="16sp"
                     app:layout_constraintStart_toStartOf="parent"
@@ -122,27 +122,65 @@
 
     </com.google.android.material.card.MaterialCardView>
 
+    <!-- Buttons for Edit and Delete -->
+    <LinearLayout
+        android:id="@+id/editDeleteButtonGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="32dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/medicationCard">
+
+        <!-- Edit Medication Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/editMedicationButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="16dp"
+            android:backgroundTint="@color/primary_blue"
+            android:text="Edit"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- Delete Medication Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/deleteMedicationButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/error_red"
+            android:text="Delete"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <!-- RecyclerView for Reminders -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewReminders"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/editDeleteButtonGroup"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/deleteMedicationButton"
-        app:layout_constraintBottom_toTopOf="@+id/addReminderButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/addReminderButton"
         tools:listitem="@layout/reminder_item" />
 
-        <!-- Add Reminder Button -->
+    <!-- Add Reminder Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/addReminderButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:layout_weight="1"
         android:backgroundTint="@color/primary_blue"
         android:text="Add Reminder"
         android:textColor="@color/white"
@@ -150,24 +188,6 @@
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/recyclerViewReminders" />
-
-        <!-- Delete Medication Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/deleteMedicationButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_weight="1"
-        android:backgroundTint="@color/error_red"
-        android:text="Delete"
-        android:textColor="@color/white"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/medicationCard" />
-
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

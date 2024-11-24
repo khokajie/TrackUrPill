@@ -14,11 +14,14 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         val medicationId = intent?.getStringExtra("medicationId") ?: ""
         val dosage = intent?.getStringExtra("dosage") ?: "1"
 
+        val notificationManager = NotificationManagerCompat.from(context)
+
         // Create "Taken" Action
         val takenIntent = Intent(context, ReminderActionReceiver::class.java).apply {
             action = "ACTION_TAKEN"
             putExtra("medicationId", medicationId)
             putExtra("dosage", dosage)
+            putExtra("medicationName", medicationName)
         }
         val takenPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -41,17 +44,34 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Dismiss Notification Intent
+        val dismissIntent = Intent(context, ReminderActionReceiver::class.java).apply {
+            action = "ACTION_DISMISS"
+            putExtra("notificationId", medicationId.hashCode())
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            (medicationId.hashCode() + 2),
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         // Build Notification
         val notification = NotificationCompat.Builder(context, "REMINDER_CHANNEL")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Medication Reminder")
-            .setContentText("It's time to take your $medicationName. Dosage: $dosage")
+            .setContentText("It's time to take your $medicationName. $dosage")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+            .setAutoCancel(true) // Dismiss notification when tapped
+            .setDeleteIntent(dismissPendingIntent) // Handle swiping away
             .addAction(R.drawable.ic_check, "Taken", takenPendingIntent)
             .addAction(R.drawable.ic_alarm, "Remind Again", remindAgainPendingIntent)
             .build()
 
-        NotificationManagerCompat.from(context).notify(medicationId.hashCode(), notification)
+        try {
+            notificationManager.notify(medicationId.hashCode(), notification)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

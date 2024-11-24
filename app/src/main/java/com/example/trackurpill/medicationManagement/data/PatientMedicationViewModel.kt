@@ -72,6 +72,16 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
         updateResult()
     }
 
+    fun getMedicationLiveData(medicationId: String): MutableLiveData<Medication?> {
+        val specificMedicationLD = MutableLiveData<Medication?>()
+        medicationLD.observeForever { medications ->
+            val medication = medications.find { it.medicationId == medicationId }
+            specificMedicationLD.value = medication
+        }
+        return specificMedicationLD
+    }
+
+
 
     fun sort(field: String, reverse: Boolean) {
         this.field = field

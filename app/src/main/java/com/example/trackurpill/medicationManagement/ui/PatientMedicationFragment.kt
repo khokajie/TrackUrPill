@@ -33,25 +33,6 @@ class PatientMedicationFragment : Fragment() {
         // Retrieve the optional patientId argument
         patientId = arguments?.getString("patientId")
 
-        setupAdapter()
-        setupSearchView()
-        observeMedications()
-
-        binding.fabAddMedication.setOnClickListener {
-            if (patientId != null) {
-                nav.navigate(
-                    R.id.addPatientMedicationFragment,
-                    Bundle().apply { putString("patientId", patientId) }
-                )
-            } else {
-                nav.navigate(R.id.addPatientMedicationFragment)
-            }
-        }
-
-        return binding.root
-    }
-
-    private fun setupAdapter() {
         adapter = MedicationAdapter { medication ->
             nav.navigate(
                 R.id.medicationDetailsFragment,
@@ -59,9 +40,7 @@ class PatientMedicationFragment : Fragment() {
             )
         }
         binding.recyclerViewMedications.adapter = adapter
-    }
 
-    private fun setupSearchView() {
         binding.searchViewMedications.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean = false
 
@@ -76,9 +55,7 @@ class PatientMedicationFragment : Fragment() {
             searchQuery = null // Reset search query when search is closed
             true
         }
-    }
 
-    private fun observeMedications() {
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
         val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
 
@@ -102,5 +79,19 @@ class PatientMedicationFragment : Fragment() {
             binding.noRecordText.visibility = View.VISIBLE
             adapter.submitFullList(emptyList())
         }
+
+        binding.fabAddMedication.setOnClickListener {
+            if (patientId != null) {
+                nav.navigate(
+                    R.id.addPatientMedicationFragment,
+                    Bundle().apply { putString("patientId", patientId) }
+                )
+            } else {
+                nav.navigate(R.id.addPatientMedicationFragment)
+            }
+        }
+
+        return binding.root
     }
+
 }

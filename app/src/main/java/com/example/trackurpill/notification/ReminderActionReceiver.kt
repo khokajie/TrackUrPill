@@ -6,36 +6,47 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.data.Medication
+import com.example.trackurpill.data.MedicationLog
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
 
 class ReminderActionReceiver : BroadcastReceiver() {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onReceive(context: Context, intent: Intent?) {
         when (intent?.action) {
             "ACTION_TAKEN" -> {
                 handleActionTaken(context, intent)
+                clearNotification(context, intent.getStringExtra("medicationId"))
             }
             "ACTION_REMIND_AGAIN" -> {
                 handleRemindAgain(context, intent)
+                clearNotification(context, intent.getStringExtra("medicationId"))
+            }
+            "ACTION_DISMISS" -> {
+                val notificationId = intent.getIntExtra("notificationId", -1)
+                if (notificationId != -1) {
+                    NotificationManagerCompat.from(context).cancel(notificationId)
+                }
+                clearNotification(context, intent.getStringExtra("medicationId"))
             }
         }
     }
 
     private fun handleActionTaken(context: Context, intent: Intent) {
         val medicationId = intent.getStringExtra("medicationId")
+        val medicationName = intent.getStringExtra("medicationName") ?: "Unknown"
         val dosageString = intent.getStringExtra("dosage")
         val dosage = dosageString?.let { extractNumericValue(it) }
-
-        // Debugging logs
-        android.util.Log.d("ReminderActionReceiver", "Medication ID: $medicationId")
-        android.util.Log.d("ReminderActionReceiver", "Dosage String: $dosageString")
-        android.util.Log.d("ReminderActionReceiver", "Extracted Dosage: $dosage")
+        val userId = auth.currentUser?.uid ?: "UnknownUser"
 
         if (medicationId != null && dosage != null) {
+            // Update stock level
             firestore.collection("Medication")
                 .document(medicationId)
                 .get()
@@ -62,7 +73,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
                                     ).show()
                                 }
                         } else {
-                            Toast.makeText(context, "Insufficient stock!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Insufficient stock! Remember to restock!", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
@@ -73,11 +84,28 @@ class ReminderActionReceiver : BroadcastReceiver() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+
+            // Record the log
+            val log = MedicationLog(
+                logId = UUID.randomUUID().toString(),
+                medicationId = medicationId,
+                medicationName = medicationName,
+                dosage = dosage.toString(),
+                takenDate = Date(),
+                userId = userId
+            )
+
+            firestore.collection("MedicationLog").document(log.logId).set(log)
+                .addOnSuccessListener {
+                    Toast.makeText(context, "Medication log recorded.", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(context, "Failed to log medication: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
         } else {
             Toast.makeText(context, "Invalid medication data.", Toast.LENGTH_SHORT).show()
         }
     }
-
 
     private fun handleRemindAgain(context: Context, intent: Intent) {
         val medicationName = intent.getStringExtra("medicationName") ?: "Medication"
@@ -116,4 +144,10 @@ class ReminderActionReceiver : BroadcastReceiver() {
         return numericPart?.toIntOrNull()
     }
 
+    private fun clearNotification(context: Context, medicationId: String?) {
+        if (medicationId != null) {
+            val notificationManager = NotificationManagerCompat.from(context)
+            notificationManager.cancel(medicationId.hashCode())
+        }
+    }
 }

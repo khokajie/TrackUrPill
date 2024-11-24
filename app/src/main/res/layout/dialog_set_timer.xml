@@ -42,12 +42,4 @@
         android:visibility="gone"
         android:textSize="18sp" />
 
-    <!-- Status Selector -->
-    <Spinner
-        android:id="@+id/statusSpinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:entries="@array/status_options"
-        android:textSize="18sp" />
 </LinearLayout>

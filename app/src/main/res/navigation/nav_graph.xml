@@ -65,5 +65,11 @@
         android:label="EditProfile"
         tools:layout="@layout/fragment_edit_profile" />
 
+    <fragment
+        android:id="@+id/medicationLogFragment"
+        android:name="com.example.trackurpill.medicationManagement.ui.MedicationLogFragment"
+        android:label="Medication Log"
+        tools:layout="@layout/fragment_medication_log" />
+
 
 </navigation>

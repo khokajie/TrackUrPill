@@ -18,6 +18,7 @@
 
         <!-- Top App Bar Container -->
         <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/appBarLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:elevation="8dp">
@@ -27,12 +28,14 @@
                 android:id="@+id/topAppBar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="@android:color/transparent"
+                android:background="@color/primary_blue"
+                app:logo="@mipmap/ic_launcher_2_foreground"
                 app:title="TrackUrPill"
                 app:titleTextAppearance="@style/TopAppBarTitleTextStyle"
                 app:titleTextColor="@color/white"
-                app:logo="@drawable/baseline_medical_information_24"
-                app:titleMarginStart="32dp" />
+                app:contentInsetStart="0dp"
+                app:contentInsetStartWithNavigation="0dp" />
+
         </com.google.android.material.appbar.AppBarLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
