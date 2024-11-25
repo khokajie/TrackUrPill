@@ -20,55 +20,61 @@
     <fragment
         android:id="@+id/patientMedicationFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.PatientMedicationFragment"
-        android:label="PatientMedication"
+        android:label="Patient Medication"
         tools:layout="@layout/fragment_patient_medication" />
 
     <fragment
         android:id="@+id/addPatientMedicationFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.AddPatientMedicationFragment"
-        android:label="AddPatientMedication"
+        android:label="Add Patient Medication"
         tools:layout="@layout/fragment_add_patient_medication" />
 
     <fragment
         android:id="@+id/caregiverMonitorFragment"
         android:name="com.example.trackurpill.caregiverManagement.ui.caregiverMonitorFragment"
-        android:label="CaregiverManagement"
+        android:label="Caregiver Management"
         tools:layout="@layout/fragment_caregiver_monitor" />
 
     <fragment
         android:id="@+id/userProfileFragment"
         android:name="com.example.trackurpill.userManagement.ui.UserProfile"
-        android:label="UserProfile"
+        android:label="User Profile"
         tools:layout="@layout/fragment_user_profile" />
 
     <fragment
         android:id="@+id/medicationDetailsFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.MedicationDetailsFragment"
-        android:label="MedicationDetails"
+        android:label="Medication Details"
         tools:layout="@layout/fragment_medication_details" />
 
     <fragment
         android:id="@+id/healthHistoryFragment"
         android:name="com.example.trackurpill.healthTrackingManagement.ui.HealthHistoryFragment"
-        android:label="HealthHistory"
+        android:label="Health History"
         tools:layout="@layout/fragment_health_history" />
 
     <fragment
         android:id="@+id/addHealthHistoryFragment"
         android:name="com.example.trackurpill.healthTrackingManagement.ui.AddHealthHistoryFragment"
-        android:label="AddHealthHistory"
+        android:label="Add Health History"
         tools:layout="@layout/fragment_add_health_history" />
 
     <fragment
         android:id="@+id/editProfileFragment"
         android:name="com.example.trackurpill.userManagement.ui.EditProfile"
-        android:label="EditProfile"
+        android:label="Edit Profile"
         tools:layout="@layout/fragment_edit_profile" />
 
     <fragment
         android:id="@+id/medicationLogFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.MedicationLogFragment"
         android:label="Medication Log"
+        tools:layout="@layout/fragment_medication_log" />
+
+    <fragment
+        android:id="@+id/medicationHistoryFragment"
+        android:name="com.example.trackurpill.medicationManagement.ui.MedicationHistoryFragment"
+        android:label="Medication History"
         tools:layout="@layout/fragment_medication_log" />
 
 

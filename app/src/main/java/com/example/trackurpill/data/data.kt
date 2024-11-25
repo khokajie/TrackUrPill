@@ -62,6 +62,7 @@ data class Medication(
     var stockLevel: Int = 0,
     var instruction: String = "",
     var medicationPhoto: Blob? = null, // Use Blob for binary data
+    var medicationStatus: String = "",
     var userId: String = "" // Link to User (Patient)
 )
 

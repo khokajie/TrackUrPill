@@ -1,16 +1,24 @@
 package com.example.trackurpill.medicationManagement.ui
 
+import android.Manifest
 import android.app.DatePickerDialog
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
@@ -22,8 +30,12 @@ import com.example.trackurpill.medicationManagement.data.PatientMedicationViewMo
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Blob
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 class AddPatientMedicationFragment : Fragment() {
@@ -33,23 +45,30 @@ class AddPatientMedicationFragment : Fragment() {
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
     private var patientId: String? = null // To distinguish between caregiver and patient views
+    private lateinit var photoURI: Uri
+
+    companion object {
+        private const val PERMISSION_REQUEST_CODE = 1001
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         binding = FragmentAddPatientMedicationBinding.inflate(inflater, container, false)
+
+        requestPermissionsIfNecessary()
 
         // Retrieve the optional patientId argument
         patientId = arguments?.getString("patientId")
 
         // Determine whose medications to load
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-        val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
+        val targetUserId = patientId ?: currentUserId
 
         // Handle photo upload
-        binding.clickToAdd.setOnClickListener { pickImage() }
-        binding.photoContainer.setOnClickListener { pickImage() }
+        binding.clickToAdd.setOnClickListener { showImagePickerOptions() }
+        binding.photoContainer.setOnClickListener { showImagePickerOptions() }
 
         // Handle expiration date picker
         binding.txtExpirationDate.setOnClickListener { showDatePicker() }
@@ -65,7 +84,7 @@ class AddPatientMedicationFragment : Fragment() {
             if (!validateInputs(medicationName, dosage, expirationDateString, stockLevel)) return@setOnClickListener
 
             // Parse expiration date
-            val expirationDate = SimpleDateFormat("MM/dd/yyyy").parse(expirationDateString)
+            val expirationDate = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(expirationDateString)
 
             // Create Medication object
             val medication = Medication(
@@ -75,6 +94,7 @@ class AddPatientMedicationFragment : Fragment() {
                 expirationDate = expirationDate,
                 stockLevel = stockLevel.toInt(),
                 medicationPhoto = medicationPhotoBlob,
+                medicationStatus = "Active",
                 userId = targetUserId.toString()
             )
 
@@ -87,37 +107,161 @@ class AddPatientMedicationFragment : Fragment() {
         return binding.root
     }
 
-    private fun pickImage() {
+    private fun requestPermissionsIfNecessary() {
+        val permissions = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED) {
+            permissions.add(Manifest.permission.CAMERA)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_IMAGES)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+                permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+
+        if (permissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(requireActivity(), permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            val deniedPermissions = permissions.zip(grantResults.toTypedArray())
+                .filter { it.second != PackageManager.PERMISSION_GRANTED }
+                .map { it.first }
+
+            if (deniedPermissions.isNotEmpty()) {
+                Toast.makeText(
+                    requireContext(),
+                    "Permissions denied: $deniedPermissions",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun showImagePickerOptions() {
+        val options = arrayOf("Take Photo", "Choose from Gallery")
+
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Select Option")
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> captureImageFromCamera()
+                1 -> pickImageFromGallery()
+            }
+        }
+        builder.show()
+    }
+
+    private fun captureImageFromCamera() {
+        val photoFile = createImageFile()
+        photoURI = FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            photoFile
+        )
+        captureImageLauncher.launch(photoURI)
+    }
+
+    private val captureImageLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                handleCapturedImage()
+            } else {
+                Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    @Throws(IOException::class)
+    private fun createImageFile(): File {
+        val timeStamp: String =
+            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val storageDir: File? =
+            requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(
+            "JPEG_${timeStamp}_",
+            ".jpg",
+            storageDir
+        )
+    }
+
+    private fun handleCapturedImage() {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(photoURI)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // Compress the image
+            val compressedBitmap = compressBitmap(originalBitmap, 800, 800)
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
+            val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+            medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
+
+            // Display the compressed image in the ImageView
+            binding.imgMedicationPhoto.apply {
+                visibility = View.VISIBLE
+                setImageBitmap(compressedBitmap)
+            }
+
+            // Hide the placeholder icon
+            binding.iconAddPhoto.visibility = View.GONE
+            binding.clickToAdd.text = "Change photo"
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+        }
+    }
+
+    private fun pickImageFromGallery() {
         getMedicationImage.launch("image/*")
     }
 
-    private val getMedicationImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let {
-            try {
-                val inputStream = requireContext().contentResolver.openInputStream(it)
-                val originalBitmap = BitmapFactory.decodeStream(inputStream)
-
-                // Compress the image
-                val compressedBitmap = compressBitmap(originalBitmap, 800, 800) // 800x800 resolution
-                val byteArrayOutputStream = ByteArrayOutputStream()
-                compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream) // 85% quality
-                val compressedByteArray = byteArrayOutputStream.toByteArray()
-
-                medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
-
-                // Display the compressed image in the ImageView
-                binding.imgMedicationPhoto.apply {
-                    visibility = View.VISIBLE // Make the ImageView visible
-                    setImageBitmap(compressedBitmap) // Display the selected compressed image
-                }
-
-                // Hide the placeholder icon
-                binding.iconAddPhoto.visibility = View.GONE
-                binding.clickToAdd.text = "Change photo"
-            } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
+    private val getMedicationImage =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                processSelectedImage(it)
             }
+        }
+
+    private fun processSelectedImage(uri: Uri) {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(uri)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // Compress the image
+            val compressedBitmap = compressBitmap(originalBitmap, 800, 800)
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
+            val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+            medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
+
+            // Display the compressed image in the ImageView
+            binding.imgMedicationPhoto.apply {
+                visibility = View.VISIBLE
+                setImageBitmap(compressedBitmap)
+            }
+
+            // Hide the placeholder icon
+            binding.iconAddPhoto.visibility = View.GONE
+            binding.clickToAdd.text = "Change photo"
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
         }
     }
 
@@ -142,7 +286,6 @@ class AddPatientMedicationFragment : Fragment() {
 
         return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
     }
-
 
     private fun showDatePicker() {
         val calendar = Calendar.getInstance()
@@ -182,7 +325,7 @@ class AddPatientMedicationFragment : Fragment() {
         }
 
         val expirationDate = try {
-            SimpleDateFormat("MM/dd/yyyy").parse(expirationDateString)
+            SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(expirationDateString)
         } catch (e: Exception) {
             null
         }

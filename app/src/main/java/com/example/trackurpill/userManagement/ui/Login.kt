@@ -6,12 +6,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.Toast
-import androidx.activity.viewModels
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.trackurpill.MainActivity
@@ -29,7 +26,7 @@ class Login : Fragment() {
 
     private lateinit var binding: FragmentLoginBinding
     private val nav by lazy { findNavController() }
-    private val authViewModel: AuthViewModel by viewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
     private val userViewModel: LoggedInUserViewModel by activityViewModels()
     private val firebaseAuth = FirebaseAuth.getInstance()
 

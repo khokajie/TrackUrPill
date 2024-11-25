@@ -65,8 +65,17 @@ class MedicationDetailsFragment : Fragment() {
         }
 
         binding.deleteMedicationButton.setOnClickListener {
-            medicationVM.deleteMedication(medicationId)
-            nav.navigateUp()
+            val currentMedication = medicationVM.get(medicationId)
+            if (currentMedication != null) {
+                val updatedMedication = currentMedication.copy(
+                    medicationStatus = "Deleted" // Update status to "Deleted"
+                )
+                medicationVM.setMedication(updatedMedication) // Update the medication record
+                Toast.makeText(requireContext(), "Medication marked as deleted", Toast.LENGTH_SHORT).show()
+                nav.navigateUp() // Navigate back after the update
+            } else {
+                Toast.makeText(requireContext(), "Failed to find medication record", Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.editMedicationButton.setOnClickListener {

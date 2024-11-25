@@ -6,9 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.viewModels
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -25,7 +23,7 @@ import kotlinx.coroutines.launch
 
 class UserProfile : Fragment() {
     private lateinit var binding: FragmentUserProfileBinding
-    private val authViewModel: AuthViewModel by viewModels()
+    private val authViewModel: AuthViewModel by activityViewModels()
     private val userViewModel: LoggedInUserViewModel by activityViewModels()
     private val nav by lazy { findNavController() }
 
@@ -147,6 +145,10 @@ class UserProfile : Fragment() {
             //clear back stack every time enter top level destination
             requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigationView).menu.clear()
             nav.navigate(R.id.loginFragment)
+        }
+
+        binding.btnMedicationHistory.setOnClickListener {
+            nav.navigate(R.id.medicationHistoryFragment)
         }
 
         return binding.root

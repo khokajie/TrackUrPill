@@ -14,7 +14,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.trackurpill.data.LoggedInUser
@@ -24,7 +26,7 @@ import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var navController: NavController
+    private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
     private lateinit var appBarConfiguration: AppBarConfiguration
 
     private val userViewModel: LoggedInUserViewModel by viewModels()
@@ -52,9 +54,6 @@ class MainActivity : AppCompatActivity() {
 
         setSupportActionBar(binding.topAppBar)
 
-        val navHostFragment =
-            supportFragmentManager.findFragmentById(R.id.host) as NavHostFragment
-        navController = navHostFragment.navController
 
         // Initialize ViewModel and observe user state
         userViewModel.init()
@@ -80,7 +79,7 @@ class MainActivity : AppCompatActivity() {
                 configureBottomNav(R.menu.caregiver_bottom_nav_menu)
             }
         }
-        setupActionBarWithNavController(navController, appBarConfiguration)
+        setupActionBarWithNavController(nav, appBarConfiguration)
         navigateBasedOnRole(user.userType)
         showBottomNavigation()
     }
@@ -97,8 +96,8 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         binding.bottomNavigationView.setOnItemSelectedListener { item ->
             val destination = item.itemId
-            if (navController.currentDestination?.id != destination) {
-                navController.navigate(destination)
+            if (nav.currentDestination?.id != destination) {
+                nav.navigate(destination)
             }
             true
         }
@@ -112,7 +111,7 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_medication_log -> {
-                navController.navigate(R.id.medicationLogFragment)
+                nav.navigate(R.id.medicationLogFragment)
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -122,7 +121,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun navigateToLogin() {
         hideBottomNavigation()
-        navController.navigate(R.id.loginFragment)
+        nav.navigate(R.id.loginFragment)
     }
 
     private fun showBottomNavigation() {
@@ -134,7 +133,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        return navController.navigateUp() || super.onSupportNavigateUp()
+        return nav.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 
     private fun navigateBasedOnRole(role: String) {
@@ -143,8 +142,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             R.id.caregiverMonitorFragment
         }
-        if (navController.currentDestination?.id != destination) {
-            navController.navigate(destination)
+        if (nav.currentDestination?.id != destination) {
+            nav.navigate(destination)
         }
     }
 

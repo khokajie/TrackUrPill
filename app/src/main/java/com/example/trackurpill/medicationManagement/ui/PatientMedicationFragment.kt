@@ -61,7 +61,7 @@ class PatientMedicationFragment : Fragment() {
 
         if (targetUserId != null) {
             medicationVM.getMedicationLD().observe(viewLifecycleOwner) { medications ->
-                val filteredMedications = medications?.filter { it.userId == targetUserId } ?: emptyList()
+                val filteredMedications = medications?.filter { it.userId == targetUserId && it.medicationStatus == "Active"} ?: emptyList()
 
                 // Submit the filtered list only if it's non-null
                 adapter.submitFullList(filteredMedications)
