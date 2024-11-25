@@ -1,6 +1,8 @@
 package com.example.trackurpill.medicationManagement.ui
 
 import android.app.DatePickerDialog
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -19,6 +21,7 @@ import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Blob
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.UUID
@@ -90,25 +93,56 @@ class AddPatientMedicationFragment : Fragment() {
 
     private val getMedicationImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
-            val inputStream = requireContext().contentResolver.openInputStream(it)
-            val byteArray = inputStream?.readBytes()
-            if (byteArray != null) {
-                medicationPhotoBlob = Blob.fromBytes(byteArray)
+            try {
+                val inputStream = requireContext().contentResolver.openInputStream(it)
+                val originalBitmap = BitmapFactory.decodeStream(inputStream)
 
-                // Set the selected image into imgMedicationPhoto
+                // Compress the image
+                val compressedBitmap = compressBitmap(originalBitmap, 800, 800) // 800x800 resolution
+                val byteArrayOutputStream = ByteArrayOutputStream()
+                compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream) // 85% quality
+                val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+                medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
+
+                // Display the compressed image in the ImageView
                 binding.imgMedicationPhoto.apply {
                     visibility = View.VISIBLE // Make the ImageView visible
-                    setImageURI(uri) // Display the selected image
+                    setImageBitmap(compressedBitmap) // Display the selected compressed image
                 }
 
                 // Hide the placeholder icon
                 binding.iconAddPhoto.visibility = View.GONE
                 binding.clickToAdd.text = "Change photo"
-            } else {
-                Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
             }
         }
     }
+
+    /**
+     * Compress a Bitmap to the specified width and height.
+     */
+    private fun compressBitmap(original: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val width = original.width
+        val height = original.height
+
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val newWidth: Int
+        val newHeight: Int
+
+        if (width > height) {
+            newWidth = maxWidth
+            newHeight = (maxWidth / aspectRatio).toInt()
+        } else {
+            newHeight = maxHeight
+            newWidth = (maxHeight * aspectRatio).toInt()
+        }
+
+        return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
+    }
+
 
     private fun showDatePicker() {
         val calendar = Calendar.getInstance()
@@ -177,4 +211,5 @@ class AddPatientMedicationFragment : Fragment() {
 
         return isValid
     }
+
 }

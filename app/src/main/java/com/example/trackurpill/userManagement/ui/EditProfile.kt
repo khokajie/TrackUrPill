@@ -1,5 +1,7 @@
 package com.example.trackurpill.userManagement.ui
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,6 +17,7 @@ import com.example.trackurpill.databinding.FragmentEditProfileBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.google.firebase.firestore.Blob
 import com.google.firebase.firestore.FirebaseFirestore
+import java.io.ByteArrayOutputStream
 
 class EditProfile : Fragment() {
 
@@ -89,21 +92,59 @@ class EditProfile : Fragment() {
     private val selectImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
-                val inputStream = requireContext().contentResolver.openInputStream(it)
-                val byteArray = inputStream?.readBytes()
-                if (byteArray != null) {
-                    profileImageBlob = Blob.fromBytes(byteArray)
+                try {
+                    val inputStream = requireContext().contentResolver.openInputStream(it)
+                    val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+                    // Compress the image
+                    val compressedBitmap =
+                        compressBitmap(originalBitmap, 800, 800) // 800x800 resolution
+                    val byteArrayOutputStream = ByteArrayOutputStream()
+                    compressedBitmap.compress(
+                        Bitmap.CompressFormat.JPEG,
+                        85,
+                        byteArrayOutputStream
+                    ) // 85% quality
+                    val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+                    profileImageBlob = Blob.fromBytes(compressedByteArray)
 
                     // Display the selected image
                     binding.profileImage.apply {
                         visibility = View.VISIBLE
                         setImageURI(uri)
                     }
-                } else {
-                    Toast.makeText(requireContext(), "Failed to load image", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT)
+                        .show()
+                    e.printStackTrace()
                 }
             }
         }
+
+
+    /**
+     * Compress a Bitmap to the specified width and height.
+     */
+    private fun compressBitmap(original: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val width = original.width
+        val height = original.height
+
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val newWidth: Int
+        val newHeight: Int
+
+        if (width > height) {
+            newWidth = maxWidth
+            newHeight = (maxWidth / aspectRatio).toInt()
+        } else {
+            newHeight = maxHeight
+            newWidth = (maxHeight * aspectRatio).toInt()
+        }
+
+        return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
+    }
+
 
     private fun saveProfileChanges() {
         val userName = binding.txtUsername.text.toString().trim()

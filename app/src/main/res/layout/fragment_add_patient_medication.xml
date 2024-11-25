@@ -2,190 +2,173 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_gray"
-    android:padding="16dp">
+    android:background="@color/background_gray">
 
-    <!-- Circular Medication Photo Placeholder -->
-    <FrameLayout
-        android:id="@+id/photoContainer"
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/circle_background"
-        app:tint="@android:color/black"
-        android:clickable="true"
-        android:focusable="true"
-        app:layout_constraintEnd_toEndOf="parent"
+    <!-- Scrollable Container -->
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <ImageView
-            android:id="@+id/imgMedicationPhoto"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="Upload Medication Photo"
-            android:scaleType="centerCrop"
-            android:visibility="gone" />
-
-        <ImageView
-            android:id="@+id/iconAddPhoto"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:layout_gravity="center"
-            android:contentDescription="Add Photo Icon"
-            android:src="@drawable/ic_medicine"
-            app:tint="@color/primary_blue" />
-    </FrameLayout>
-
-    <!-- Click text -->
-    <TextView
-        android:id="@+id/clickToAdd"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Click to add medication photo"
-        android:textColor="@color/primary_blue"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/photoContainer" />
-
-    <!-- Medication Name Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/txtLayoutMedicationName"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Medication Name"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeColor="@color/primary_blue"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/clickToAdd">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/txtMedicationName"
+        <!-- Inner Content Layout -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:inputType="textCapWords" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:orientation="vertical"
+            android:padding="16dp">
 
-    <!-- Dosage Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/txtLayoutDosage"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeColor="@color/primary_blue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Dosage (e.g., 1 tablet)"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/txtLayoutMedicationName">
+            <!-- Circular Medication Photo Placeholder -->
+            <FrameLayout
+                android:id="@+id/photoContainer"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_gravity="center"
+                android:background="@drawable/circle_background"
+                app:tint="@android:color/black"
+                android:clickable="true"
+                android:focusable="true">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/txtDosage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="text" />
-    </com.google.android.material.textfield.TextInputLayout>
+                <ImageView
+                    android:id="@+id/imgMedicationPhoto"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="Upload Medication Photo"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
 
-    <!-- Instructions Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/txtLayoutInstructions"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeColor="@color/primary_blue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Instructions (e.g., Take after meals)"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/txtLayoutDosage">
+                <ImageView
+                    android:id="@+id/iconAddPhoto"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Add Photo Icon"
+                    android:src="@drawable/ic_medicine"
+                    app:tint="@color/primary_blue" />
+            </FrameLayout>
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/txtInstructions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="textCapSentences" />
-    </com.google.android.material.textfield.TextInputLayout>
+            <!-- Click text -->
+            <TextView
+                android:id="@+id/clickToAdd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp"
+                android:text="Click to add medication photo"
+                android:textColor="@color/primary_blue"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
-    <!-- Stock Level Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/txtLayoutStockLevel"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeColor="@color/primary_blue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Stock Level"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/txtLayoutInstructions">
+            <!-- Medication Name Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/txtLayoutMedicationName"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:hint="Medication Name"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/txtStockLevel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number" />
-    </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtMedicationName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapWords" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Expiration Date Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/txtLayoutExpirationDate"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        app:boxBackgroundColor="@android:color/transparent"
-        app:boxStrokeColor="@color/primary_blue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:hint="Expiration Date (MM/DD/YYYY)"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/txtLayoutStockLevel">
+            <!-- Dosage Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/txtLayoutDosage"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Dosage (e.g., 1 tablet)">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/txtExpirationDate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:focusable="false"
-            android:clickable="true" />
-    </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtDosage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Add Medication Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnAddMedication"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="64dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginEnd="64dp"
-        android:backgroundTint="@color/primary_blue"
-        android:padding="12dp"
-        android:text="Add Medication"
-        android:textSize="18sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        app:cornerRadius="12dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/txtLayoutExpirationDate" />
+            <!-- Instructions Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/txtLayoutInstructions"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Instructions (e.g., Take after meals)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtInstructions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapSentences" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Stock Level Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/txtLayoutStockLevel"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Stock Level">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtStockLevel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Expiration Date Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/txtLayoutExpirationDate"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxStrokeColor="@color/primary_blue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="Expiration Date (MM/DD/YYYY)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtExpirationDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="false"
+                    android:clickable="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Add Medication Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddMedication"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:backgroundTint="@color/primary_blue"
+                android:padding="12dp"
+                android:text="Add Medication"
+                android:textSize="18sp"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                app:cornerRadius="12dp" />
+        </LinearLayout>
+    </ScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

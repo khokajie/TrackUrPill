@@ -15,7 +15,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.trackurpill"
-        minSdk = 31
+        minSdk = 29
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -63,6 +63,8 @@ dependencies {
     annotationProcessor("com.github.bumptech.glide:compiler:4.15.1")
 
     implementation ("com.google.android.material:material:1.12.0")
+
+    implementation("com.google.firebase:firebase-storage")
 
 
 }
