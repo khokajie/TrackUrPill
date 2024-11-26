@@ -1,5 +1,6 @@
 package com.example.trackurpill.userManagement.ui
 
+import android.content.Context
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -142,6 +143,11 @@ class UserProfile : Fragment() {
         binding.btnLogout.setOnClickListener {
             authViewModel.logout()
             userViewModel.clearData()
+
+            // Clear SharedPreferences
+            val sharedPreferences = requireContext().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE)
+            sharedPreferences.edit().clear().apply()
+
             //clear back stack every time enter top level destination
             requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigationView).menu.clear()
             nav.navigate(R.id.loginFragment)

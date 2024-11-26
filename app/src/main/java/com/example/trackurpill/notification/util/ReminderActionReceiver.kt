@@ -1,4 +1,4 @@
-package com.example.trackurpill.notification
+package com.example.trackurpill.notification.util
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -16,7 +16,6 @@ import java.util.*
 class ReminderActionReceiver : BroadcastReceiver() {
 
     private val firestore = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
 
     override fun onReceive(context: Context, intent: Intent?) {
         when (intent?.action) {
@@ -43,7 +42,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
         val medicationName = intent.getStringExtra("medicationName") ?: "Unknown"
         val dosageString = intent.getStringExtra("dosage")
         val dosage = dosageString?.let { extractNumericValue(it) }
-        val userId = auth.currentUser?.uid ?: "UnknownUser"
+        val userId = intent.getStringExtra("userId")
 
         if (medicationId != null && dosage != null) {
             // Update stock level
@@ -92,7 +91,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 medicationName = medicationName,
                 dosage = dosage.toString(),
                 takenDate = Date(),
-                userId = userId
+                userId = userId.toString()
             )
 
             firestore.collection("MedicationLog").document(log.logId).set(log)
@@ -111,12 +110,14 @@ class ReminderActionReceiver : BroadcastReceiver() {
         val medicationName = intent.getStringExtra("medicationName") ?: "Medication"
         val medicationId = intent.getStringExtra("medicationId") ?: ""
         val dosage = intent.getStringExtra("dosage") ?: "1"
+        val userId = intent.getStringExtra("userId")
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val notificationIntent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("medicationName", medicationName)
             putExtra("medicationId", medicationId)
             putExtra("dosage", dosage)
+            putExtra("userId", userId)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(

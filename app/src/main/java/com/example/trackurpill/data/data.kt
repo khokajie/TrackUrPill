@@ -15,6 +15,7 @@ val MEDICATION = Firebase.firestore.collection("Medication")
 val REMINDER = Firebase.firestore.collection("Reminder")
 val HEALTH_RECORD = Firebase.firestore.collection("HealthRecord")
 val MEDICATION_LOG = Firebase.firestore.collection("MedicationLog")
+val NOTIFICATION = Firebase.firestore.collection("Notification")
 
 
 // Base User Class
@@ -102,6 +103,14 @@ data class MedicationLog(
     var medicationName: String = "",
     var dosage: String = "",
     var takenDate: Date = Date(),
+    var userId: String = ""
+)
+
+data class Notification(
+    var notificationId: String = "",
+    var message: String = "",
+    var receiveTime: Date = Date(),
+    var type: String = "", // "reminder" or "invitation"
     var userId: String = ""
 )
 

@@ -10,4 +10,11 @@
         android:title="Log"
         android:contentDescription="Medication Log"
         app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_notification"
+        android:icon="@drawable/ic_notification_white"
+        android:title="Notification"
+        android:contentDescription="Notification"
+        app:showAsAction="ifRoom" />
 </menu>

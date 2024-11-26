@@ -31,7 +31,7 @@
 
     <fragment
         android:id="@+id/caregiverMonitorFragment"
-        android:name="com.example.trackurpill.caregiverManagement.ui.caregiverMonitorFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorFragment"
         android:label="Caregiver Management"
         tools:layout="@layout/fragment_caregiver_monitor" />
 
@@ -76,6 +76,12 @@
         android:name="com.example.trackurpill.medicationManagement.ui.MedicationHistoryFragment"
         android:label="Medication History"
         tools:layout="@layout/fragment_medication_log" />
+
+    <fragment
+        android:id="@+id/notificationFragment"
+        android:name="com.example.trackurpill.notification.ui.NotificationFragment"
+        android:label="Notification"
+        tools:layout="@layout/fragment_notification" />
 
 
 </navigation>

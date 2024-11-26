@@ -1,5 +1,6 @@
 package com.example.trackurpill
 
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -8,18 +9,17 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
-import androidx.navigation.NavController
-import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import com.example.trackurpill.data.LoggedInUser
 import com.example.trackurpill.databinding.ActivityMainBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 
@@ -31,18 +31,22 @@ class MainActivity : AppCompatActivity() {
 
     private val userViewModel: LoggedInUserViewModel by viewModels()
 
-    private val patientDestinations = setOf(
+    // Define top-level destinations
+    private val patientTLD = setOf(
         R.id.patientMedicationFragment,
         R.id.healthHistoryFragment,
         R.id.userProfileFragment
     )
 
-    private val caregiverDestinations = setOf(
-        R.id.patientMedicationFragment,
+    private val caregiverTLD = setOf(
         R.id.caregiverMonitorFragment,
+        R.id.patientMedicationFragment,
         R.id.healthHistoryFragment,
         R.id.userProfileFragment
     )
+
+    // Variable to store the current user type
+    private var currentUserType: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,55 +56,94 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannel()
         checkAndRequestNotificationPermission()
 
+        // Set up the action bar
         setSupportActionBar(binding.topAppBar)
 
-
-        // Initialize ViewModel and observe user state
+        // Initialize ViewModels
         userViewModel.init()
+
+        // Observe the LiveData
         userViewModel.loggedInUserLD.observe(this, Observer { loggedInUser ->
             if (loggedInUser != null) {
-                configureNavigationBasedOnUserType(loggedInUser)
+                configureAppBar(loggedInUser.userType)
+                configureBottomNav(loggedInUser.userType)
+                setupActionBarWithNavController(nav, appBarConfiguration)
+                binding.bottomNavigationView.setupWithNavController(nav)
+                showBottomNavigation()
+
+                if (savedInstanceState == null) { // Only navigate if first creation
+                    // Navigate to the main content and clear the back stack
+                    val startDestination = if (loggedInUser.userType == "Patient") {
+                        R.id.patientMedicationFragment
+                    } else {
+                        R.id.caregiverMonitorFragment
+                    }
+
+                    nav.navigate(startDestination, null, NavOptions.Builder()
+                        .setPopUpTo(R.id.loginFragment, true) // Remove loginFragment from back stack
+                        .build())
+                }
             } else {
-                navigateToLogin()
+                if (savedInstanceState == null) {
+                    navigateToLogin()
+                }
             }
         })
 
-        setupBottomNavigation()
+        // Check login state after setting up the observer
+        checkLoginState()
     }
 
-    private fun configureNavigationBasedOnUserType(user: LoggedInUser) {
-        when (user.userType) {
-            "Patient" -> {
-                configureAppBar(patientDestinations)
-                configureBottomNav(R.menu.patient_bottom_nav_menu)
-            }
-            "Caregiver" -> {
-                configureAppBar(caregiverDestinations)
-                configureBottomNav(R.menu.caregiver_bottom_nav_menu)
-            }
-        }
+    private fun configureNavigationBasedOnUserType(userType: String) {
+        currentUserType = userType // Store the current user type
+        configureAppBar(userType)
+        configureBottomNav(userType)
         setupActionBarWithNavController(nav, appBarConfiguration)
-        navigateBasedOnRole(user.userType)
+        binding.bottomNavigationView.setupWithNavController(nav)
         showBottomNavigation()
-    }
 
-    private fun configureAppBar(destinations: Set<Int>) {
-        appBarConfiguration = AppBarConfiguration(destinations)
-    }
-
-    private fun configureBottomNav(menuRes: Int) {
-        binding.bottomNavigationView.menu.clear()
-        binding.bottomNavigationView.inflateMenu(menuRes)
-    }
-
-    private fun setupBottomNavigation() {
-        binding.bottomNavigationView.setOnItemSelectedListener { item ->
-            val destination = item.itemId
-            if (nav.currentDestination?.id != destination) {
-                nav.navigate(destination)
-            }
-            true
+        // Navigate to the main content and clear the back stack
+        val startDestination = if (userType == "Patient") {
+            R.id.patientMedicationFragment
+        } else {
+            R.id.caregiverMonitorFragment
         }
+
+        nav.navigate(startDestination, null, NavOptions.Builder()
+            .setPopUpTo(R.id.loginFragment, true) // Remove loginFragment from back stack
+            .build())
+    }
+
+    private fun configureAppBar(userType: String) {
+        appBarConfiguration = when (userType) {
+            "Patient" -> AppBarConfiguration(patientTLD)
+            "Caregiver" -> AppBarConfiguration(caregiverTLD)
+            else -> AppBarConfiguration(setOf())
+        }
+    }
+
+    private fun configureBottomNav(userType: String) {
+        binding.bottomNavigationView.menu.clear()
+        when (userType) {
+            "Patient" -> binding.bottomNavigationView.inflateMenu(R.menu.patient_bottom_nav_menu)
+            "Caregiver" -> binding.bottomNavigationView.inflateMenu(R.menu.caregiver_bottom_nav_menu)
+            // Add other user types if necessary
+        }
+    }
+
+    private fun navigateToLogin() {
+        hideBottomNavigation()
+        nav.navigate(R.id.loginFragment, null, NavOptions.Builder()
+            .setPopUpTo(nav.graph.startDestinationId, true) // Clear the entire back stack
+            .build())
+    }
+
+    private fun showBottomNavigation() {
+        binding.bottomNavigationView.visibility = View.VISIBLE
+    }
+
+    private fun hideBottomNavigation() {
+        binding.bottomNavigationView.visibility = View.GONE
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -114,37 +157,16 @@ class MainActivity : AppCompatActivity() {
                 nav.navigate(R.id.medicationLogFragment)
                 true
             }
+            R.id.action_notification -> {
+                nav.navigate(R.id.notificationFragment)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
-
-    private fun navigateToLogin() {
-        hideBottomNavigation()
-        nav.navigate(R.id.loginFragment)
-    }
-
-    private fun showBottomNavigation() {
-        binding.bottomNavigationView.visibility = View.VISIBLE
-    }
-
-    private fun hideBottomNavigation() {
-        binding.bottomNavigationView.visibility = View.GONE
-    }
-
     override fun onSupportNavigateUp(): Boolean {
         return nav.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
-    }
-
-    private fun navigateBasedOnRole(role: String) {
-        val destination = if (role == "Patient") {
-            R.id.patientMedicationFragment
-        } else {
-            R.id.caregiverMonitorFragment
-        }
-        if (nav.currentDestination?.id != destination) {
-            nav.navigate(destination)
-        }
     }
 
     fun hideTopAppBar() {
@@ -190,5 +212,66 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Notification permission denied", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun checkLoginState() {
+        val sharedPreferences = getSharedPreferences("UserPreferences", Context.MODE_PRIVATE)
+        val userId = sharedPreferences.getString("userID", null)
+        val userType = sharedPreferences.getString("userType", null)
+
+        if (userId != null && userType != null) {
+            // Set the loggedInUser in the ViewModel
+            userViewModel.setLoggedInUser(userType, userId)
+        }
+    }
+
+    // Helper method to check if the current destination is a top-level destination
+    private fun isTopLevelDestination(destinationId: Int?): Boolean {
+        if (destinationId == null) return false
+        return when (currentUserType) {
+            "Patient" -> patientTLD.contains(destinationId)
+            "Caregiver" -> caregiverTLD.contains(destinationId)
+            else -> false
+        }
+    }
+
+    // Override the onBackPressed method to customize back navigation
+    override fun onBackPressed() {
+        val currentDestination = nav.currentDestination?.id
+
+        when {
+            currentDestination == R.id.patientMedicationFragment -> {
+                // Show exit confirmation dialog
+                showExitConfirmationDialog()
+            }
+            isTopLevelDestination(currentDestination) && currentDestination != R.id.patientMedicationFragment -> {
+                // Navigate back to patientMedicationFragment
+                nav.navigate(R.id.patientMedicationFragment, null, NavOptions.Builder()
+                    .setLaunchSingleTop(true) // Avoid multiple instances
+                    .setRestoreState(true)
+                    .build())
+            }
+            else -> {
+                // Default back action
+                super.onBackPressed()
+            }
+        }
+    }
+
+    // Method to display an exit confirmation dialog
+    private fun showExitConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Exit App")
+            .setMessage("Are you sure you want to exit the app?")
+            .setPositiveButton("Yes") { dialog, which ->
+                // Exit the app
+                finish()
+            }
+            .setNegativeButton("No") { dialog, which ->
+                // Dismiss the dialog
+                dialog.dismiss()
+            }
+            .create()
+            .show()
     }
 }

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/patientMedicationFragment"
-        android:icon="@drawable/ic_medication"
-        android:title="Medications" />
     <item android:id="@+id/caregiverMonitorFragment"
         android:icon="@drawable/ic_monitor"
         android:title="Monitor" />
+    <item android:id="@+id/patientMedicationFragment"
+        android:icon="@drawable/ic_medication"
+        android:title="Medications" />
     <item android:id="@+id/healthHistoryFragment"
         android:icon="@drawable/ic_health_tracking"
         android:title="Health Tracking" />

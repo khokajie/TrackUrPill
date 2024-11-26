@@ -27,6 +27,7 @@ import com.example.trackurpill.medicationManagement.util.ReminderAdapter
 import com.example.trackurpill.util.ReminderScheduler
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,6 +38,7 @@ class MedicationDetailsFragment : Fragment() {
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
     private val reminderVM: ReminderViewModel by activityViewModels()
     private lateinit var medicationId: String
+    private lateinit var currentUserId: String
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -45,6 +47,7 @@ class MedicationDetailsFragment : Fragment() {
         binding = FragmentMedicationDetailsBinding.inflate(inflater, container, false)
 
         medicationId = arguments?.getString("medicationId") ?: ""
+        currentUserId = FirebaseAuth.getInstance().currentUser?.uid.toString()
 
         observeMedicationDetails()
 
@@ -177,7 +180,8 @@ class MedicationDetailsFragment : Fragment() {
                             reminderTimeMillis,
                             binding.medicationName.text.toString(),
                             medicationId,
-                            binding.medicationDosage.text.toString()
+                            binding.medicationDosage.text.toString(),
+                            currentUserId
                         )
                     }
                     "Daily" -> ReminderScheduler.scheduleDailyReminder(
@@ -186,7 +190,8 @@ class MedicationDetailsFragment : Fragment() {
                         minute,
                         binding.medicationName.text.toString(),
                         medicationId,
-                        binding.medicationDosage.text.toString()
+                        binding.medicationDosage.text.toString(),
+                        currentUserId
                     )
                     "Weekly" -> ReminderScheduler.scheduleWeeklyReminder(
                         requireContext(),
@@ -195,7 +200,8 @@ class MedicationDetailsFragment : Fragment() {
                         dayPicker.selectedItemPosition + 1,
                         binding.medicationName.text.toString(),
                         medicationId,
-                        binding.medicationDosage.text.toString()
+                        binding.medicationDosage.text.toString(),
+                        currentUserId
                     )
                 }
                 Toast.makeText(requireContext(), "Reminder set successfully", Toast.LENGTH_SHORT).show()

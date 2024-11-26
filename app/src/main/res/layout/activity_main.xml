@@ -29,12 +29,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:background="@color/primary_blue"
-                app:logo="@mipmap/ic_launcher_2_foreground"
+                app:contentInsetStart="16dp"
+                app:contentInsetStartWithNavigation="0dp"
                 app:title="TrackUrPill"
                 app:titleTextAppearance="@style/TopAppBarTitleTextStyle"
-                app:titleTextColor="@color/white"
-                app:contentInsetStart="0dp"
-                app:contentInsetStartWithNavigation="0dp" />
+                app:titleTextColor="@color/white" />
 
         </com.google.android.material.appbar.AppBarLayout>
 

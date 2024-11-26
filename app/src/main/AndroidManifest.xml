@@ -23,7 +23,6 @@
     <activity
         android:name=".MainActivity"
         android:windowSoftInputMode="adjustPan"
-        android:configChanges="orientation|screenSize|keyboardHidden"
         android:exported="true">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
@@ -33,10 +32,10 @@
     </activity>
 
         <receiver
-            android:name=".notification.ReminderBroadcastReceiver"
+            android:name=".notification.util.ReminderBroadcastReceiver"
             android:exported="true" />
 
-        <receiver android:name=".notification.ReminderActionReceiver" />
+        <receiver android:name=".notification.util.ReminderActionReceiver" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

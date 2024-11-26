@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
-import com.example.trackurpill.notification.ReminderBroadcastReceiver
+import com.example.trackurpill.notification.util.ReminderBroadcastReceiver
 import java.util.*
 
 object ReminderScheduler {
@@ -17,9 +17,10 @@ object ReminderScheduler {
         reminderTimeMillis: Long,
         medicationName: String,
         medicationId: String,
-        dosage: String
+        dosage: String,
+        userId: String
     ) {
-        val intent = createIntent(context, medicationName, medicationId, dosage)
+        val intent = createIntent(context, medicationName, medicationId, dosage, userId)
         val pendingIntent = createPendingIntent(context, medicationId, intent)
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -44,7 +45,8 @@ object ReminderScheduler {
         reminderMinute: Int,
         medicationName: String,
         medicationId: String,
-        dosage: String
+        dosage: String,
+        userId: String
     ) {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, reminderHour)
@@ -61,6 +63,7 @@ object ReminderScheduler {
             medicationName,
             medicationId,
             dosage,
+            userId,
             AlarmManager.INTERVAL_DAY
         )
     }
@@ -73,7 +76,8 @@ object ReminderScheduler {
         dayOfWeek: Int,
         medicationName: String,
         medicationId: String,
-        dosage: String
+        dosage: String,
+        userId: String
     ) {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.DAY_OF_WEEK, dayOfWeek)
@@ -91,6 +95,7 @@ object ReminderScheduler {
             medicationName,
             medicationId,
             dosage,
+            userId,
             AlarmManager.INTERVAL_DAY * 7
         )
     }
@@ -102,9 +107,10 @@ object ReminderScheduler {
         medicationName: String,
         medicationId: String,
         dosage: String,
+        userId: String,
         intervalMillis: Long
     ) {
-        val intent = createIntent(context, medicationName, medicationId, dosage)
+        val intent = createIntent(context, medicationName, medicationId, dosage, userId )
         val pendingIntent = createPendingIntent(context, medicationId, intent)
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -119,7 +125,7 @@ object ReminderScheduler {
 
     // Cancels a reminder
     fun cancelReminder(context: Context, medicationId: String) {
-        val intent = createIntent(context, "", medicationId, "")
+        val intent = createIntent(context, "", medicationId, "", "")
         val pendingIntent = createPendingIntent(context, medicationId, intent)
 
         pendingIntent?.let {
@@ -130,11 +136,12 @@ object ReminderScheduler {
     }
 
     // Helper to create Intent
-    private fun createIntent(context: Context, medicationName: String, medicationId: String, dosage: String): Intent {
+    private fun createIntent(context: Context, medicationName: String, medicationId: String, dosage: String, userId: String): Intent {
         return Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("medicationName", medicationName)
             putExtra("medicationId", medicationId)
             putExtra("dosage", dosage)
+            putExtra("userId", userId)
         }
     }
 
