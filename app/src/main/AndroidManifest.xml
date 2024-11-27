@@ -32,7 +32,7 @@
     </activity>
 
         <receiver
-            android:name=".notification.util.ReminderBroadcastReceiver"
+            android:name=".notification.ReminderBroadcastReceiver"
             android:exported="true" />
 
         <receiver android:name=".notification.util.ReminderActionReceiver" />

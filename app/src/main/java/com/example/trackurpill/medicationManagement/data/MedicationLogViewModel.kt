@@ -6,7 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.MEDICATION_LOG
 import com.example.trackurpill.data.MedicationLog
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.ktx.toObjects
+import com.google.firebase.firestore.toObjects
 
 class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
     private val medicationLogLD = MutableLiveData<List<MedicationLog>>(emptyList())

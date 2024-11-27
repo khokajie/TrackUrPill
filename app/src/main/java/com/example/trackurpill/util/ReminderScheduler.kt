@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
-import com.example.trackurpill.notification.util.ReminderBroadcastReceiver
+import com.example.trackurpill.notification.ReminderBroadcastReceiver
 import java.util.*
 
 object ReminderScheduler {

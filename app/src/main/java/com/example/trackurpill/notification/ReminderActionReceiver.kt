@@ -9,7 +9,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.MedicationLog
-import com.google.firebase.auth.FirebaseAuth
+import com.example.trackurpill.notification.ReminderBroadcastReceiver
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
 

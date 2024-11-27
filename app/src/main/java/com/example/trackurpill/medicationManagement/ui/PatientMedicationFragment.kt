@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
 import com.example.trackurpill.R
 import com.example.trackurpill.databinding.FragmentPatientMedicationBinding
@@ -51,6 +52,7 @@ class PatientMedicationFragment : Fragment() {
             }
         })
 
+
         binding.searchViewMedications.setOnCloseListener {
             searchQuery = null // Reset search query when search is closed
             true
@@ -93,5 +95,6 @@ class PatientMedicationFragment : Fragment() {
 
         return binding.root
     }
+
 
 }

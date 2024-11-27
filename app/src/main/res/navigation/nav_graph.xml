@@ -83,5 +83,11 @@
         android:label="Notification"
         tools:layout="@layout/fragment_notification" />
 
+    <fragment
+        android:id="@+id/caregiverPatientDetailsFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverPatientDetailsFragment"
+        android:label="Patient Details"
+        tools:layout="@layout/fragment_caregiver_patient_details" />
+
 
 </navigation>

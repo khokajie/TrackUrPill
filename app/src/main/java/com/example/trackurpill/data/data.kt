@@ -79,8 +79,6 @@ data class Reminder(
     var medicationId: String = "" // Link to Medication
 )
 
-
-
 // Health Record Data Model
 data class HealthRecord(
     @DocumentId
@@ -98,6 +96,7 @@ data class HealthRecord(
 )
 
 data class MedicationLog(
+    @DocumentId
     var logId: String = "",
     var medicationId: String = "",
     var medicationName: String = "",
@@ -107,6 +106,7 @@ data class MedicationLog(
 )
 
 data class Notification(
+    @DocumentId
     var notificationId: String = "",
     var message: String = "",
     var receiveTime: Date = Date(),

@@ -23,7 +23,6 @@
             android:layout_height="wrap_content"
             android:elevation="8dp">
 
-            <!-- Top App Bar -->
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/topAppBar"
                 android:layout_width="match_parent"
