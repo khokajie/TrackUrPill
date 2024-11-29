@@ -13,6 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
         android:background="@drawable/search_view_background"
+        app:searchIcon="@drawable/ic_search"
         android:queryHint="Search medications"
         app:iconifiedByDefault="false"
         android:focusable="false"

@@ -20,19 +20,19 @@
     <fragment
         android:id="@+id/patientMedicationFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.PatientMedicationFragment"
-        android:label="Patient Medication"
+        android:label="Medication"
         tools:layout="@layout/fragment_patient_medication" />
 
     <fragment
         android:id="@+id/addPatientMedicationFragment"
         android:name="com.example.trackurpill.medicationManagement.ui.AddPatientMedicationFragment"
-        android:label="Add Patient Medication"
+        android:label="Add Medication"
         tools:layout="@layout/fragment_add_patient_medication" />
 
     <fragment
         android:id="@+id/caregiverMonitorFragment"
         android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorFragment"
-        android:label="Caregiver Management"
+        android:label="Patient List"
         tools:layout="@layout/fragment_caregiver_monitor" />
 
     <fragment

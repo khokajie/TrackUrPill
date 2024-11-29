@@ -27,12 +27,12 @@
                 android:id="@+id/topAppBar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="@color/primary_blue"
+                android:background="@color/white"
                 app:contentInsetStart="16dp"
                 app:contentInsetStartWithNavigation="0dp"
                 app:title="TrackUrPill"
                 app:titleTextAppearance="@style/TopAppBarTitleTextStyle"
-                app:titleTextColor="@color/white" />
+                app:titleTextColor="@color/text_light_gray" />
 
         </com.google.android.material.appbar.AppBarLayout>
 

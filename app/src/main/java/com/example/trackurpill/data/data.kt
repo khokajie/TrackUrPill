@@ -111,7 +111,9 @@ data class Notification(
     var message: String = "",
     var receiveTime: Date = Date(),
     var type: String = "", // "reminder" or "invitation"
-    var userId: String = ""
+    var status: String = "",
+    var userId: String = "",
+    var senderId: String = ""
 )
 
 data class LoggedInUser(

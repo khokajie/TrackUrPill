@@ -13,7 +13,7 @@
 
     <item
         android:id="@+id/action_notification"
-        android:icon="@drawable/ic_notification_white"
+        android:icon="@drawable/ic_notification"
         android:title="Notification"
         android:contentDescription="Notification"
         app:showAsAction="ifRoom" />

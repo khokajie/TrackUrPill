@@ -92,8 +92,8 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         notificationManager.notify(medicationId.hashCode(), notification)
 
         // Save Notification Data to Firestore
-        println("Notification created for userId: $currentUserId")
-        saveNotificationToFirestore(context, medicationName, medicationId, dosage, currentUserId)
+        println("Notification created for userId: $intentUserId")
+        saveNotificationToFirestore(context, medicationName, medicationId, dosage, intentUserId)
     }
 
     private fun saveNotificationToFirestore(

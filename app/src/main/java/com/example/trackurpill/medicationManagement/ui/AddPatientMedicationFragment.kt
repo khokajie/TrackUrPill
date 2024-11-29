@@ -22,7 +22,6 @@ import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
-import com.bumptech.glide.Glide
 import com.example.trackurpill.R
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
@@ -37,6 +36,10 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 
 class AddPatientMedicationFragment : Fragment() {
 
@@ -46,6 +49,8 @@ class AddPatientMedicationFragment : Fragment() {
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
     private var patientId: String? = null // To distinguish between caregiver and patient views
     private lateinit var photoURI: Uri
+    private lateinit var ocrImageUri: Uri
+    private val REQUEST_OCR_PERMISSIONS = 2001
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
@@ -102,6 +107,10 @@ class AddPatientMedicationFragment : Fragment() {
             medicationVM.setMedication(medication)
             Toast.makeText(requireContext(), "Medication Added", Toast.LENGTH_SHORT).show()
             nav.navigateUp()
+        }
+
+        binding.btnScanMedicationInfo.setOnClickListener {
+            showOCRImagePickerOptions()
         }
 
         return binding.root
@@ -353,6 +362,409 @@ class AddPatientMedicationFragment : Fragment() {
         }
 
         return isValid
+    }
+
+    private fun showOCRImagePickerOptions() {
+        val options = arrayOf("Take Photo", "Choose from Gallery")
+
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Select Option")
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> captureImageFromCameraForOCR()
+                1 -> pickImageFromGalleryForOCR()
+            }
+        }
+        builder.show()
+    }
+
+    private fun captureImageFromCameraForOCR() {
+        val photoFile = createImageFileForOCR()
+        ocrImageUri = FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            photoFile
+        )
+        captureOCRImageLauncher.launch(ocrImageUri)
+    }
+
+    private val captureOCRImageLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                handleCapturedImageForOCR()
+            } else {
+                Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    @Throws(IOException::class)
+    private fun createImageFileForOCR(): File {
+        val timeStamp: String =
+            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val storageDir: File? =
+            requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(
+            "OCR_${timeStamp}_",
+            ".jpg",
+            storageDir
+        )
+    }
+
+    private fun pickImageFromGalleryForOCR() {
+        getOCRImage.launch("image/*")
+    }
+
+    private val getOCRImage =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                processOCRImage(it)
+            }
+        }
+
+    private fun handleCapturedImageForOCR() {
+        try {
+            processOCRImage(ocrImageUri)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+        }
+    }
+
+    private fun processOCRImage(uri: Uri) {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(uri)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // You may need to rotate the image if necessary
+            //val fixedBitmap = rotateImageIfRequired(originalBitmap, uri)
+
+            // Process the image with ML Kit
+            processImageWithMLKit(originalBitmap)
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+        }
+    }
+
+    private fun processImageWithMLKit(bitmap: Bitmap) {
+        val image = InputImage.fromBitmap(bitmap, 0)
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+        recognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                // Extract information from the recognized text
+                extractMedicationInfo(visionText)
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Failed to recognize text", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+    }
+
+    private fun extractMedicationInfo(visionText: Text) {
+        val fullText = visionText.text
+        Log.d("OCR Full Text", "\n$fullText")
+
+        // Initialize variables to hold extracted information
+        var medicationName: String? = null
+        var dosage: String? = null
+        var instructions: String? = null
+        var expirationDate: String? = null
+        var stockLevel: Int? = null // Added stockLevel variable
+
+        // Split the recognized text into lines
+        val lines = fullText.split("\n")
+
+        // Define regex patterns
+        // Medication Name: capture text up to the dosage number
+        val medicationNameRegex = Regex(
+            """^([A-Za-z\s\-]+?)(?:\s*[-]*)\d+""",
+            RegexOption.IGNORE_CASE
+        )
+        // Dosage Extraction: numbers before "tablet" or "capsule", with optional space
+        val dosageRegex = Regex(
+            """\b(\d+(\.\d+)?)\s*(tablet|capsule)\b""",
+            RegexOption.IGNORE_CASE
+        )
+        // Dosage Instruction Extraction: text within parentheses following dosage
+        val dosageInstructionRegex = Regex(
+            """\((\d+\s+TIMES\s+PER\s+DAY)\)""",
+            RegexOption.IGNORE_CASE
+        )
+        // Instructions Extraction: text within parentheses OR text starting with instruction verbs anywhere in the line
+        val instructionsRegex = Regex(
+            """\(([^)]+)\)|\b(?:take|dose|apply|use|instill|inhale)\b\s+([^.\\n]+)""",
+            RegexOption.IGNORE_CASE
+        )
+        // Expiration Date Extraction: prioritize "Expiry" over "Date", allow trailing punctuation
+        val expiryDateRegex = Regex(
+            """\b(expiry|exp|expires?|expiration)\s*[:\-]?\s*(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b.*""",
+            RegexOption.IGNORE_CASE
+        )
+        val dateRegex = Regex(
+            """\bdate\s*[:\-]?\s*(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b.*""",
+            RegexOption.IGNORE_CASE
+        )
+        // Stock Level Extraction: Match lines starting with "Qty:" followed by the quantity
+        val stockLevelRegex = Regex(
+            """\b(?:qty|quantity)[:\-]?\s*(\d+)\b""",
+            RegexOption.IGNORE_CASE
+        )
+
+        // Define a list of keywords to identify non-medication lines
+        val nonMedicationKeywords = listOf(
+            "clinic",
+            "medical centre",
+            "batch",
+            "lot no",
+            "manufacturer",
+            "address",
+            "phone",
+            "fax",
+            "website",
+            "null",
+            "shot",
+            "test",
+            "software",
+            "ulations" // captures partial words like "Regulations"
+        )
+
+        // Iterate through lines to extract information
+        for ((index, line) in lines.withIndex()) {
+            val trimmedLine = line.trim()
+            val lowerLine = trimmedLine.lowercase(Locale.getDefault())
+
+            // Skip lines that contain non-medication related keywords
+            if (nonMedicationKeywords.any { lowerLine.contains(it) }) {
+                Log.d("ExtractMedicationInfo", "Skipping non-medication line: $trimmedLine")
+                continue
+            }
+
+            // Extract Expiration Date (prioritize "Expiry" over "Date")
+            val expiryMatch = expiryDateRegex.find(line)
+            if (expiryMatch != null) {
+                val day = expiryMatch.groups[2]?.value
+                val month = expiryMatch.groups[3]?.value
+                val year = expiryMatch.groups[4]?.value
+                val formattedDate = formatCompleteDate(day, month, year)
+                if (formattedDate != null) {
+                    expirationDate = formattedDate
+                    Log.d("ExtractMedicationInfo", "Found Expiry Date: $formattedDate")
+                }
+                continue
+            }
+
+            // Extract Expiration Date from "Date" if not set by "Expiry"
+            if (expirationDate == null) {
+                val dateMatch = dateRegex.find(line)
+                if (dateMatch != null) {
+                    val day = dateMatch.groups[1]?.value
+                    val month = dateMatch.groups[2]?.value
+                    val year = dateMatch.groups[3]?.value
+                    val formattedDate = formatCompleteDate(day, month, year)
+                    if (formattedDate != null) {
+                        expirationDate = formattedDate
+                        Log.d("ExtractMedicationInfo", "Found Date as Expiry Date: $formattedDate")
+                    }
+                    continue
+                }
+            }
+
+            // Extract Medication Name
+            if (medicationName == null) {
+                val medNameMatch = medicationNameRegex.find(line)
+                if (medNameMatch != null) {
+                    val name = medNameMatch.groups[1]?.value?.trim()
+                    if (name != null && !nonMedicationKeywords.any {
+                            name.lowercase(Locale.getDefault()).contains(it)
+                        }) {
+                        medicationName = name
+                        Log.d("ExtractMedicationInfo", "Found Medication Name: $medicationName")
+                    }
+                    continue
+                } else {
+                    // If no match, try to see if the entire line is a medication name
+                    // If line does not contain numbers or dosage units
+                    if (
+                        !lowerLine.contains(Regex("""\d""")) &&
+                        !lowerLine.contains(
+                            Regex(
+                                """\b(tab|tablet|capsule)\b""",
+                                RegexOption.IGNORE_CASE
+                            )
+                        )
+                    ) {
+                        medicationName = trimmedLine
+                        Log.d("ExtractMedicationInfo", "Assumed Medication Name: $medicationName")
+                        continue
+                    }
+                }
+            }
+
+            // Extract Dosage Instruction (e.g., "(3 TIMES PER DAY)")
+            if (instructions == null) {
+                val dosageInstructionMatch = dosageInstructionRegex.find(line)
+                if (dosageInstructionMatch != null) {
+                    instructions = dosageInstructionMatch.groups[1]?.value?.trim()
+                    Log.d("ExtractMedicationInfo", "Found Instructions from Dosage Instruction: $instructions")
+                    continue
+                }
+            }
+
+            // Extract Dosage
+            if (dosage == null) {
+                val dosageMatch = dosageRegex.find(line)
+                if (dosageMatch != null) {
+                    dosage = "${dosageMatch.groups[1]?.value?.trim()} ${dosageMatch.groups[3]?.value?.trim()}"
+                    Log.d("ExtractMedicationInfo", "Found Dosage: $dosage")
+                    continue
+                }
+            }
+
+            // Extract Instructions from any parentheses or starting with verbs
+            if (instructions == null) {
+                val instructionsMatch = instructionsRegex.find(line)
+                if (instructionsMatch != null) {
+                    val parenthetical = instructionsMatch.groups[1]?.value?.trim()
+                    val verbInstruction = instructionsMatch.groups[2]?.value?.trim()
+                    instructions = parenthetical ?: verbInstruction
+                    Log.d(
+                        "ExtractMedicationInfo",
+                        "Found Instructions: ${instructions ?: "null"}"
+                    )
+                    continue
+                }
+            }
+
+            // Extract Stock Level
+            if (stockLevel == null) {
+                val stockLevelMatch = stockLevelRegex.find(line)
+                if (stockLevelMatch != null) {
+                    val qtyString = stockLevelMatch.groups[1]?.value
+                    val qty = qtyString?.toIntOrNull()
+                    if (qty != null) {
+                        stockLevel = qty
+                        Log.d("ExtractMedicationInfo", "Found Stock Level: $stockLevel")
+                    }
+                    continue
+                }
+            }
+        }
+
+        // Attempt to find stock level in the entire text if not found line-by-line
+        if (stockLevel == null) {
+            val stockLevelMatch = stockLevelRegex.find(fullText)
+            if (stockLevelMatch != null) {
+                val qtyString = stockLevelMatch.groups[1]?.value
+                val qty = qtyString?.toIntOrNull()
+                if (qty != null) {
+                    stockLevel = qty
+                    Log.d("ExtractMedicationInfo", "Found Stock Level from Full Text: $stockLevel")
+                }
+            }
+        }
+
+        // Final Logging
+        Log.d("ExtractMedicationInfo", "Final Extracted Information:")
+        Log.d("ExtractMedicationInfo", "Medication Name: $medicationName")
+        Log.d("ExtractMedicationInfo", "Dosage: $dosage")
+        Log.d("ExtractMedicationInfo", "Expiration Date: $expirationDate")
+        Log.d("ExtractMedicationInfo", "Instructions: $instructions")
+        Log.d("ExtractMedicationInfo", "Stock Level: $stockLevel")
+
+        // Update UI with extracted information
+        requireActivity().runOnUiThread {
+            medicationName?.let {
+                binding.txtMedicationName.setText(it)
+                // Highlight the field to indicate it was auto-filled
+                binding.txtMedicationName.background =
+                    ContextCompat.getDrawable(
+                        requireContext(),
+                        R.drawable.auto_filled_background
+                    )
+            }
+            dosage?.let {
+                binding.txtDosage.setText(it)
+                binding.txtDosage.background =
+                    ContextCompat.getDrawable(
+                        requireContext(),
+                        R.drawable.auto_filled_background
+                    )
+            }
+            expirationDate?.let {
+                binding.txtExpirationDate.setText(it)
+                binding.txtExpirationDate.background =
+                    ContextCompat.getDrawable(
+                        requireContext(),
+                        R.drawable.auto_filled_background
+                    )
+            }
+            instructions?.let {
+                binding.txtInstructions.setText(it)
+                binding.txtInstructions.background =
+                    ContextCompat.getDrawable(
+                        requireContext(),
+                        R.drawable.auto_filled_background
+                    )
+            }
+            stockLevel?.let {
+                binding.txtStockLevel.setText(it.toString())
+                binding.txtStockLevel.background =
+                    ContextCompat.getDrawable(
+                        requireContext(),
+                        R.drawable.auto_filled_background
+                    )
+            }
+        }
+    }
+
+
+    /**
+     * Formats the complete date by ensuring the year is in four-digit format.
+     * If the year is two digits, it converts it to four digits by prefixing "20".
+     * Assumes the date format is DD/MM/YYYY or DD/MM/YY.
+     *
+     * @param day The day part of the date.
+     * @param month The month part of the date.
+     * @param year The year part of the date (can be two or four digits).
+     * @return The formatted date string in "dd/MM/yyyy" format or null if invalid.
+     */
+    private fun formatCompleteDate(day: String?, month: String?, year: String?): String? {
+        return if (day != null && month != null && year != null) {
+            val formattedYear = formatYear(year)
+            if (formattedYear != null) {
+                "$day/$month/$formattedYear"
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Formats the year to four digits based on its original length.
+     * - If the year is two digits, it prefixes "20" to make it four digits (e.g., "20" -> "2020").
+     * - If the year is already four digits, it remains unchanged.
+     *
+     * @param year The year string extracted from the date.
+     * @return The formatted four-digit year string or null if invalid.
+     */
+    private fun formatYear(year: String?): String? {
+        return year?.let {
+            when (it.length) {
+                2 -> {
+                    val num = it.toIntOrNull()
+                    if (num != null) {
+                        "20${it.padStart(2, '0')}"
+                    } else {
+                        null
+                    }
+                }
+                4 -> it
+                else -> null
+            }
+        }
     }
 
 }

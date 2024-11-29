@@ -27,14 +27,13 @@ class CaregiverPatientDetailsFragment : Fragment() {
 
         val patientId = arguments?.getString("patientId") ?: ""
 
-        patientViewModel.fetchPatientDetails(patientId)
-
         // Observe patient details LiveData
-        patientViewModel.getPatientDetailsLD().observe(viewLifecycleOwner) { patient ->
-            if (patient != null) {
-                // Set patient name
-                binding.patientNameTextView.text = patient.userName// Load patient photo (if available)
+        patientViewModel.fetchPatientDetails(patientId).observe(viewLifecycleOwner) { patient ->
+            patient?.let {
+                binding.patientNameTextView.text = patient.userName
                 binding.patientImageView.setImageResource(R.drawable.ic_profile) // Default photo
+
+                // Load patient photo (if available)
                 patient.userPhoto?.let {
                     val photoBytes = it.toBytes()
                     Glide.with(this).load(photoBytes).circleCrop().into(binding.patientImageView)
