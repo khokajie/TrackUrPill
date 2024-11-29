@@ -39,11 +39,7 @@ class MedicationAdapter(
         val medication = getItem(position)
         holder.binding.apply {
             title.text = medication.medicationName
-            expiration.text = "Expires: ${
-                medication.expirationDate?.let {
-                    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(it)
-                } ?: "N/A"
-            }"
+            expiration.text = "Expires: ${medication.expirationDate}"
 
             // Load medication photo
             if (medication.medicationPhoto != null) {

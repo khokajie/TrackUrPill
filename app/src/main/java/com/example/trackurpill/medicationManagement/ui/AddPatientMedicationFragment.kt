@@ -85,18 +85,14 @@ class AddPatientMedicationFragment : Fragment() {
             val expirationDateString = binding.txtExpirationDate.text.toString().trim()
             val stockLevel = binding.txtStockLevel.text.toString().trim()
 
-            // Validate inputs
             if (!validateInputs(medicationName, dosage, expirationDateString, stockLevel)) return@setOnClickListener
-
-            // Parse expiration date
-            val expirationDate = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(expirationDateString)
 
             // Create Medication object
             val medication = Medication(
                 medicationId = UUID.randomUUID().toString(),
                 medicationName = medicationName,
                 dosage = dosage,
-                expirationDate = expirationDate,
+                expirationDate = expirationDateString, // Store the string directly
                 stockLevel = stockLevel.toInt(),
                 medicationPhoto = medicationPhotoBlob,
                 medicationStatus = "Active",
@@ -109,9 +105,6 @@ class AddPatientMedicationFragment : Fragment() {
             nav.navigateUp()
         }
 
-        binding.btnScanMedicationInfo.setOnClickListener {
-            showOCRImagePickerOptions()
-        }
 
         return binding.root
     }
@@ -301,8 +294,8 @@ class AddPatientMedicationFragment : Fragment() {
         val datePickerDialog = DatePickerDialog(
             requireContext(),
             { _, year, month, dayOfMonth ->
-                val formattedDate = String.format("%02d/%02d/%d", month + 1, dayOfMonth, year)
-                binding.txtExpirationDate.setText(formattedDate)
+                val formattedDate = String.format("%02d/%02d/%04d", dayOfMonth, month + 1, year)
+                binding.txtExpirationDate.setText(formattedDate) // Set formatted string
             },
             calendar.get(Calendar.YEAR),
             calendar.get(Calendar.MONTH),
@@ -333,20 +326,22 @@ class AddPatientMedicationFragment : Fragment() {
             binding.txtLayoutDosage.error = null
         }
 
-        val expirationDate = try {
-            SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(expirationDateString)
-        } catch (e: Exception) {
-            null
-        }
-
-        if (expirationDate == null) {
-            binding.txtLayoutExpirationDate.error = "Invalid date format. Use MM/dd/yyyy"
-            isValid = false
-        } else if (expirationDate.before(Calendar.getInstance().time)) {
-            binding.txtLayoutExpirationDate.error = "Expiration date cannot be in the past"
+        if (expirationDateString.isEmpty()) {
+            binding.txtLayoutExpirationDate.error = "Expiration date cannot be empty"
             isValid = false
         } else {
-            binding.txtLayoutExpirationDate.error = null
+            try {
+                val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(expirationDateString)
+                if (date.before(Calendar.getInstance().time)) {
+                    binding.txtLayoutExpirationDate.error = "Expiration date cannot be in the past"
+                    isValid = false
+                } else {
+                    binding.txtLayoutExpirationDate.error = null
+                }
+            } catch (e: Exception) {
+                binding.txtLayoutExpirationDate.error = "Invalid date format. Use dd/MM/yyyy"
+                isValid = false
+            }
         }
 
         if (stockLevel.isEmpty() || stockLevel.toIntOrNull() == null || stockLevel.toInt() < 0) {
@@ -363,6 +358,7 @@ class AddPatientMedicationFragment : Fragment() {
 
         return isValid
     }
+
 
     private fun showOCRImagePickerOptions() {
         val options = arrayOf("Take Photo", "Choose from Gallery")

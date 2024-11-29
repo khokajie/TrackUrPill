@@ -2,6 +2,7 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
@@ -18,12 +19,10 @@
             android:id="@+id/medicationName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
             android:text="Paracetamol"
             android:textColor="@color/primary_blue"
             android:textSize="16sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/recoverButton"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -36,20 +35,22 @@
             android:text="Dosage: 500 mg"
             android:textColor="@color/text_dark_gray"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="@id/medicationName"
-            app:layout_constraintTop_toBottomOf="@id/medicationName" />
+            app:layout_constraintStart_toStartOf="@+id/medicationName"
+            app:layout_constraintTop_toBottomOf="@+id/medicationName" />
 
         <!-- Instruction -->
         <TextView
             android:id="@+id/medicationInstruction"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Instruction: Take after lunch"
             android:textColor="@color/text_dark_gray"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="@id/medicationName"
-            app:layout_constraintTop_toBottomOf="@id/medicationDosage" />
+            app:layout_constraintEnd_toStartOf="@+id/recoverButton"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="@+id/medicationDosage"
+            app:layout_constraintTop_toBottomOf="@+id/medicationDosage" />
 
         <!-- Expiration Date -->
         <TextView
@@ -60,21 +61,20 @@
             android:text="Expiration Date: 22 May 2025"
             android:textColor="@color/text_dark_gray"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="@id/medicationName"
-            app:layout_constraintTop_toBottomOf="@id/medicationInstruction" />
+            app:layout_constraintStart_toStartOf="@+id/medicationInstruction"
+            app:layout_constraintTop_toBottomOf="@+id/medicationInstruction" />
 
         <!-- Recover Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/recoverButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
-            android:layout_marginTop="16dp"
             android:backgroundTint="@color/primary_blue"
             android:icon="@drawable/ic_restore"
             android:text="Recover"
             android:textColor="@android:color/white"
             android:textSize="14sp"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 

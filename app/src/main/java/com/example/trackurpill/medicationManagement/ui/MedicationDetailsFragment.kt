@@ -93,9 +93,7 @@ class MedicationDetailsFragment : Fragment() {
             medication?.let {
                 binding.medicationName.text = it.medicationName
                 binding.medicationDosage.text = "Dosage: ${it.dosage}"
-                binding.expirationDate.text = "Expiration Date: " + (it.expirationDate?.let { date ->
-                    SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(date)
-                } ?: "N/A")
+                binding.expirationDate.text = "Expiration Date: ${it.expirationDate}"
                 binding.stockLevel.text = "Stock Level: ${it.stockLevel}"
 
                 it.medicationPhoto?.let { blob ->
@@ -123,7 +121,7 @@ class MedicationDetailsFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
                     0 -> {
-                        datePicker.visibility = View.VISIBLE
+                        datePicker.visibility = View.VISIBLE // Show date picker for "Once"
                         dayPicker.visibility = View.GONE
                     }
                     1 -> {
@@ -132,7 +130,7 @@ class MedicationDetailsFragment : Fragment() {
                     }
                     2 -> {
                         datePicker.visibility = View.GONE
-                        dayPicker.visibility = View.VISIBLE
+                        dayPicker.visibility = View.VISIBLE // Show day picker for "Weekly"
                     }
                 }
             }
@@ -149,7 +147,7 @@ class MedicationDetailsFragment : Fragment() {
                 val selectedFrequency = frequencySpinner.selectedItem.toString()
 
                 val selectedDate = if (selectedFrequency == "Once") {
-                    String.format("%02d/%02d/%04d", datePicker.month + 1, datePicker.dayOfMonth, datePicker.year)
+                    String.format("%02d/%02d/%04d", datePicker.dayOfMonth, datePicker.month + 1, datePicker.year)
                 } else null
 
                 val selectedDay = if (selectedFrequency == "Weekly") {
@@ -170,19 +168,19 @@ class MedicationDetailsFragment : Fragment() {
 
                 when (selectedFrequency) {
                     "Once" -> {
-                        val reminderTimeMillis = Calendar.getInstance().apply {
-                            set(Calendar.HOUR_OF_DAY, hour)
-                            set(Calendar.MINUTE, minute)
-                            set(Calendar.SECOND, 0)
-                        }.timeInMillis
-                        ReminderScheduler.scheduleReminderAt(
-                            requireContext(),
-                            reminderTimeMillis,
-                            binding.medicationName.text.toString(),
-                            medicationId,
-                            binding.medicationDosage.text.toString(),
-                            currentUserId
-                        )
+                        val reminderTimeMillis = getReminderTimeMillis(selectedDate, hour, minute)
+                        if (reminderTimeMillis != null) {
+                            ReminderScheduler.scheduleReminderAt(
+                                requireContext(),
+                                reminderTimeMillis,
+                                binding.medicationName.text.toString(),
+                                medicationId,
+                                binding.medicationDosage.text.toString(),
+                                currentUserId
+                            )
+                        } else {
+                            Toast.makeText(requireContext(), "Invalid date or time", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     "Daily" -> ReminderScheduler.scheduleDailyReminder(
                         requireContext(),
@@ -210,6 +208,22 @@ class MedicationDetailsFragment : Fragment() {
             .create()
             .show()
     }
+
+    private fun getReminderTimeMillis(date: String?, hour: Int, minute: Int): Long? {
+        return try {
+            val calendar = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            val parsedDate = dateFormat.parse(date ?: return null)
+            calendar.time = parsedDate
+            calendar.set(Calendar.HOUR_OF_DAY, hour)
+            calendar.set(Calendar.MINUTE, minute)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.timeInMillis
+        } catch (e: Exception) {
+            null
+        }
+    }
+
 
     private fun showEditMedicationDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_medication, null)
@@ -265,7 +279,7 @@ class MedicationDetailsFragment : Fragment() {
                 val updatedMedication = currentMedication?.copy(
                     medicationName = updatedName,
                     dosage = updatedDosage,
-                    expirationDate = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(updatedExpirationDate),
+                    expirationDate = updatedExpirationDate,
                     stockLevel = updatedStockLevel.toInt()
                 )
                 updatedMedication?.let { medicationVM.setMedication(it) }

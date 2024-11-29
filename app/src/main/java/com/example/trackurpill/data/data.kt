@@ -59,7 +59,7 @@ data class Medication(
     var medicationId: String = "",
     var medicationName: String = "",
     var dosage: String = "",
-    var expirationDate: Date? = null,
+    var expirationDate: String = "",
     var stockLevel: Int = 0,
     var instruction: String = "",
     var medicationPhoto: Blob? = null, // Use Blob for binary data
@@ -91,7 +91,7 @@ data class HealthRecord(
     var cholesterolLevels: Double = 0.0,
     var bmi: Double = 0.0,
     var temperature: Double = 0.0,
-    var recordDateTime: Date? = null,
+    var recordDateTime: String = "",
     var userId: String = "" // Link to Patient
 )
 

@@ -100,7 +100,6 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
 
         // Sort by field
         list = when (field) {
-            "expirationDate" -> list.sortedBy { it.expirationDate }
             "name"           -> list.sortedBy { it.medicationName }
             else             -> list
         }

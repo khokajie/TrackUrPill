@@ -1,13 +1,13 @@
 package com.example.trackurpill.healthTrackingManagement.ui
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trackurpill.R
@@ -15,7 +15,10 @@ import com.example.trackurpill.databinding.FragmentHealthHistoryBinding
 import com.example.trackurpill.healthTrackingManagement.data.HealthHistoryViewModel
 import com.example.trackurpill.healthTrackingManagement.util.HealthRecordAdapter
 import com.google.firebase.auth.FirebaseAuth
+import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 
 class HealthHistoryFragment : Fragment() {
 
@@ -41,21 +44,17 @@ class HealthHistoryFragment : Fragment() {
             adapter = this@HealthHistoryFragment.adapter
         }
 
-        // Determine whose medications to load
+
+        // Determine whose health records to load
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
         val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
 
         if (targetUserId != null) {
             healthHistoryVM.getHealthRecordsLD().observe(viewLifecycleOwner) { healthRecords ->
                 val filteredHealthRecords = healthRecords?.filter { it.userId == targetUserId } ?: emptyList()
-                println("HealthRecord: $filteredHealthRecords")
 
                 // Update no record text visibility
-                if (filteredHealthRecords.isEmpty()) {
-                    binding.noRecordText.visibility = View.VISIBLE
-                } else {
-                    binding.noRecordText.visibility = View.GONE
-                }
+                binding.noRecordText.visibility = if (filteredHealthRecords.isEmpty()) View.VISIBLE else View.GONE
 
                 // Find the latest valid record for BMI, height, and weight
                 val latestValidRecord = filteredHealthRecords
@@ -74,7 +73,7 @@ class HealthHistoryFragment : Fragment() {
                     binding.weightValue.text = "N/A"
                 }
 
-                // Update the RecyclerView with all filtered records
+                // Submit the filtered list to the adapter
                 adapter.submitList(filteredHealthRecords)
             }
         } else {
@@ -85,10 +84,10 @@ class HealthHistoryFragment : Fragment() {
 
         // Floating Action Button to add a new health record
         binding.fabAddHealthRecord.setOnClickListener {
-                nav.navigate(
-                    R.id.addHealthHistoryFragment,
-                    Bundle().apply { putString("patientId", patientId) }
-                )
+            nav.navigate(
+                R.id.addHealthHistoryFragment,
+                Bundle().apply { putString("patientId", patientId) }
+            )
         }
 
         return binding.root

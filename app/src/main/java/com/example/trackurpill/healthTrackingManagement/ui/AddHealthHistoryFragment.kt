@@ -12,6 +12,7 @@ import com.example.trackurpill.data.HealthRecord
 import com.example.trackurpill.databinding.FragmentAddHealthHistoryBinding
 import com.example.trackurpill.healthTrackingManagement.data.HealthHistoryViewModel
 import com.google.firebase.auth.FirebaseAuth
+import java.text.SimpleDateFormat
 import java.util.*
 
 class AddHealthHistoryFragment : Fragment() {
@@ -46,6 +47,9 @@ class AddHealthHistoryFragment : Fragment() {
                 0.0
             }
 
+            // Format the current date to "dd/MM/yyyy"
+            val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
             // Create HealthRecord object
             val healthRecord = HealthRecord(
                 recordId = UUID.randomUUID().toString(),
@@ -57,7 +61,7 @@ class AddHealthHistoryFragment : Fragment() {
                 cholesterolLevels = binding.txtCholesterolLevels.text.toString().toDoubleOrNull() ?: 0.0,
                 temperature = binding.txtTemperature.text.toString().toDoubleOrNull() ?: 0.0,
                 bmi = bmi,
-                recordDateTime = Date(),
+                recordDateTime = formattedDate, // Save as formatted string
                 userId = targetUserId.toString()
             )
 

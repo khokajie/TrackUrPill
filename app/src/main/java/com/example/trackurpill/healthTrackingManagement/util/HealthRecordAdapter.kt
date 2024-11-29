@@ -8,10 +8,11 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.data.HealthRecord
 import com.example.trackurpill.databinding.HealthRecordItemBinding
-import java.text.SimpleDateFormat
-import java.util.*
 
-class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback) {
+
+class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback) {
+
+    private var allHealthRecords: List<HealthRecord> = emptyList()
 
     companion object DiffCallback : DiffUtil.ItemCallback<HealthRecord>() {
         override fun areItemsTheSame(oldItem: HealthRecord, newItem: HealthRecord) =
@@ -36,8 +37,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
         holder.binding.apply {
             // Date
             if (healthRecord.recordDateTime != null) {
-                val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                txtRecordDateTime.text = "Date: ${formatter.format(healthRecord.recordDateTime!!)}"
+                txtRecordDateTime.text = "Date: ${healthRecord.recordDateTime}"
                 txtRecordDateTime.visibility = View.VISIBLE
             } else {
                 txtRecordDateTime.visibility = View.GONE
@@ -45,7 +45,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Weight
             if (healthRecord.weight > 0) {
-                txtWeight.text = "Weight: ${healthRecord.weight} kg"
+                txtWeight.text = "${healthRecord.weight} kg"
                 containerWeight.visibility = View.VISIBLE
             } else {
                 containerWeight.visibility = View.GONE
@@ -53,7 +53,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Height
             if (healthRecord.height > 0) {
-                txtHeight.text = "Height: ${healthRecord.height} cm"
+                txtHeight.text = "${healthRecord.height} cm"
                 containerHeight.visibility = View.VISIBLE
             } else {
                 containerHeight.visibility = View.GONE
@@ -61,7 +61,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Blood Pressure
             if (healthRecord.bloodPressure > 0) {
-                txtBloodPressure.text = "Blood Pressure: ${healthRecord.bloodPressure} mmHg"
+                txtBloodPressure.text = "${healthRecord.bloodPressure} mmHg"
                 containerBloodPressure.visibility = View.VISIBLE
             } else {
                 containerBloodPressure.visibility = View.GONE
@@ -69,7 +69,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Heart Rate
             if (healthRecord.heartRate > 0) {
-                txtHeartRate.text = "Heart Rate: ${healthRecord.heartRate} bpm"
+                txtHeartRate.text = "${healthRecord.heartRate} bpm"
                 containerHeartRate.visibility = View.VISIBLE
             } else {
                 containerHeartRate.visibility = View.GONE
@@ -77,7 +77,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Blood Sugar Levels
             if (healthRecord.bloodSugarLevels > 0) {
-                txtBloodSugarLevels.text = "Blood Sugar: ${healthRecord.bloodSugarLevels} mmol/L"
+                txtBloodSugarLevels.text = "${healthRecord.bloodSugarLevels} mmol/L"
                 containerBloodSugar.visibility = View.VISIBLE
             } else {
                 containerBloodSugar.visibility = View.GONE
@@ -85,7 +85,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Cholesterol Levels
             if (healthRecord.cholesterolLevels > 0) {
-                txtCholesterolLevels.text = "Cholesterol: ${healthRecord.cholesterolLevels} mmol/L"
+                txtCholesterolLevels.text = "${healthRecord.cholesterolLevels} mmol/L"
                 containerCholesterol.visibility = View.VISIBLE
             } else {
                 containerCholesterol.visibility = View.GONE
@@ -93,7 +93,7 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // BMI
             if (healthRecord.bmi > 0) {
-                txtBmi.text = String.format("BMI: %.1f", healthRecord.bmi)
+                txtBmi.text = String.format("%.1f", healthRecord.bmi)
                 containerBmi.visibility = View.VISIBLE
             } else {
                 containerBmi.visibility = View.GONE
@@ -101,12 +101,18 @@ class HealthRecordAdapter: ListAdapter<HealthRecord, HealthRecordAdapter.ViewHol
 
             // Temperature
             if (healthRecord.temperature > 0) {
-                txtTemperature.text = "Temperature: ${healthRecord.temperature} °C"
+                txtTemperature.text = "${healthRecord.temperature} °C"
                 containerTemperature.visibility = View.VISIBLE
             } else {
                 containerTemperature.visibility = View.GONE
             }
-
         }
     }
+
+    fun submitFullList(list: List<HealthRecord>) {
+        allHealthRecords = list
+        submitList(list)
+    }
+
+
 }
