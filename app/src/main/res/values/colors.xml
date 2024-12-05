@@ -29,4 +29,9 @@
     <color name="purple_700">#3700B3</color>
     <color name="teal_200">#03DAC5</color>
 
+    <!-- Severity Colors -->
+    <color name="severityHigh">#D32F2F</color>      <!-- Red -->
+    <color name="severityMedium">#F57C00</color>    <!-- Orange -->
+    <color name="severityLow">#FFA000</color>       <!-- Yellow -->
+    <color name="severityUnknown">#BDBDBD</color>
 </resources>

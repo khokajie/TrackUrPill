@@ -67,7 +67,6 @@ data class Medication(
     var userId: String = "" // Link to User (Patient)
 )
 
-
 data class Reminder(
     @DocumentId
     var reminderId: String = "",

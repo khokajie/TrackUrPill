@@ -18,7 +18,6 @@ import com.google.firebase.auth.FirebaseAuth
 class NotificationFragment : Fragment() {
 
     private lateinit var binding: FragmentNotificationBinding
-    private val nav by lazy { findNavController() }
     private val notificationVM: NotificationViewModel by activityViewModels()
     private lateinit var adapter: NotificationAdapter
 

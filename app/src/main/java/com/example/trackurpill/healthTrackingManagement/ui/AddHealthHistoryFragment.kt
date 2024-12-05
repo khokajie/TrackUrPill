@@ -61,7 +61,7 @@ class AddHealthHistoryFragment : Fragment() {
                 cholesterolLevels = binding.txtCholesterolLevels.text.toString().toDoubleOrNull() ?: 0.0,
                 temperature = binding.txtTemperature.text.toString().toDoubleOrNull() ?: 0.0,
                 bmi = bmi,
-                recordDateTime = formattedDate, // Save as formatted string
+                recordDateTime = getCurrentFormattedDateTime(), // Save as formatted string
                 userId = targetUserId.toString()
             )
 
@@ -72,6 +72,12 @@ class AddHealthHistoryFragment : Fragment() {
         }
 
         return binding.root
+    }
+
+    // Function to create a formatted date string
+    fun getCurrentFormattedDateTime(): String {
+        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        return formatter.format(System.currentTimeMillis())
     }
 
     private fun calculateBMI(weight: Double, height: Double): Double {

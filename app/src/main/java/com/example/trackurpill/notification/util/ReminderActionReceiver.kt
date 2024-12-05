@@ -1,4 +1,4 @@
-package com.example.trackurpill.notification
+package com.example.trackurpill.notification.util
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.MedicationLog
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
 

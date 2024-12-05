@@ -37,7 +37,7 @@
             android:name=".notification.ReminderBroadcastReceiver"
             android:exported="true" />
 
-        <receiver android:name=".notification.util.ReminderActionReceiver" />
+        <receiver android:name=".notification.ReminderActionReceiver" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -37,11 +37,7 @@ class MedicationHistoryAdapter(
             medicationName.text = medication.medicationName ?: "Unknown"
             medicationDosage.text = "Dosage: ${medication.dosage ?: "N/A"}"
             medicationInstruction.text = "Instruction: ${medication.instruction ?: "No instruction"}"
-            medicationExpirationDate.text = "Expiration Date: ${
-                medication.expirationDate?.let {
-                    SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(it)
-                } ?: "No date"
-            }"
+            medicationExpirationDate.text = "Expiration Date: ${medication.expirationDate?: "No date"}"
 
             // Set Recover Button Action
             recoverButton.setOnClickListener {

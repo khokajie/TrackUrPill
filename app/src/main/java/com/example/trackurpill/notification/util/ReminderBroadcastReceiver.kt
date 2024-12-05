@@ -1,4 +1,4 @@
-package com.example.trackurpill.notification
+package com.example.trackurpill.notification.util
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -8,6 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.R
 import com.example.trackurpill.data.Notification
+import com.example.trackurpill.notification.ReminderActionReceiver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.Date
@@ -15,22 +16,10 @@ import java.util.UUID
 
 class ReminderBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        // Retrieve intent extras
         val medicationName = intent?.getStringExtra("medicationName") ?: "Medication"
         val medicationId = intent?.getStringExtra("medicationId") ?: ""
         val dosage = intent?.getStringExtra("dosage") ?: "1"
-        val intentUserId = intent?.getStringExtra("userId") ?: ""
-
-        // Get the currently authenticated user
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        val currentUserId = currentUser?.uid
-
-        // Check if the userId from the intent matches the current user
-        if (currentUserId == null || currentUserId != intentUserId) {
-            // Either no user is logged in or the userId doesn't match
-            println("User ID mismatch or no user logged in. Notification not sent.")
-            return
-        }
+        val userId = intent?.getStringExtra("userId") ?: ""
 
         val notificationManager = NotificationManagerCompat.from(context)
 
@@ -40,7 +29,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             putExtra("medicationId", medicationId)
             putExtra("dosage", dosage)
             putExtra("medicationName", medicationName)
-            putExtra("userId", intentUserId)
+            putExtra("userId", userId)
         }
         val takenPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -55,7 +44,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             putExtra("medicationId", medicationId)
             putExtra("medicationName", medicationName)
             putExtra("dosage", dosage)
-            putExtra("userId", intentUserId)
+            putExtra("userId", userId)
         }
         val remindAgainPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -91,18 +80,13 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         notificationManager.notify(medicationId.hashCode(), notification)
 
         // Save Notification Data to Firestore
-        println("Notification created for userId: $intentUserId")
-        saveNotificationToFirestore(context, medicationName, medicationId, dosage, intentUserId)
+        println("Notification created")
+        saveNotificationToFirestore(medicationName, medicationId, dosage)
     }
 
-    private fun saveNotificationToFirestore(
-        context: Context,
-        medicationName: String,
-        medicationId: String,
-        dosage: String,
-        userId: String
-    ) {
+    private fun saveNotificationToFirestore(medicationName: String, medicationId: String, dosage: String) {
         val notificationId = UUID.randomUUID().toString()
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         val notification = Notification(
             notificationId = notificationId,
@@ -113,14 +97,6 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
         )
 
         val db = FirebaseFirestore.getInstance()
-        db.collection("Notification")
-            .document(notificationId)
-            .set(notification)
-            .addOnSuccessListener {
-                println("Notification saved to Firestore for userId: $userId")
-            }
-            .addOnFailureListener { e ->
-                println("Failed to save notification: ${e.message}")
-            }
+        db.collection("Notification").document(notificationId).set(notification)
     }
 }

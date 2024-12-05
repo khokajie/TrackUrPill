@@ -1,3 +1,4 @@
+// AddPatientMedicationFragment.kt
 package com.example.trackurpill.medicationManagement.ui
 
 import android.Manifest
@@ -13,7 +14,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
@@ -21,39 +22,44 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.trackurpill.R
+import com.example.trackurpill.api.DetailedHealthInfo
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
+import com.example.trackurpill.medicationManagement.data.AdverseEventViewModel
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
+import com.example.trackurpill.notification.data.NotificationViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Blob
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
 
 class AddPatientMedicationFragment : Fragment() {
 
     private lateinit var binding: FragmentAddPatientMedicationBinding
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
+    private val notificationVM: NotificationViewModel by activityViewModels()
+    private val adverseEventVM: AdverseEventViewModel by viewModels()
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
     private var patientId: String? = null // To distinguish between caregiver and patient views
     private lateinit var photoURI: Uri
-    private lateinit var ocrImageUri: Uri
-    private val REQUEST_OCR_PERMISSIONS = 2001
+    private var loadingDialog: AlertDialog? = null
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
+        private const val TAG = "AddPatientMedication"
     }
 
     override fun onCreateView(
@@ -71,9 +77,12 @@ class AddPatientMedicationFragment : Fragment() {
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
         val targetUserId = patientId ?: currentUserId
 
-        // Handle photo upload
-        binding.clickToAdd.setOnClickListener { showImagePickerOptions() }
-        binding.photoContainer.setOnClickListener { showImagePickerOptions() }
+        // Handle photo upload (no OCR)
+        binding.clickToAdd.setOnClickListener { showImagePickerOptionsForPhoto() }
+        binding.photoContainer.setOnClickListener { showImagePickerOptionsForPhoto() }
+
+        // Handle scan medication info (with OCR)
+        binding.btnScanMedicationInfo.setOnClickListener { showImagePickerOptionsForOCR() }
 
         // Handle expiration date picker
         binding.txtExpirationDate.setOnClickListener { showDatePicker() }
@@ -84,8 +93,16 @@ class AddPatientMedicationFragment : Fragment() {
             val dosage = binding.txtDosage.text.toString().trim()
             val expirationDateString = binding.txtExpirationDate.text.toString().trim()
             val stockLevel = binding.txtStockLevel.text.toString().trim()
+            val instructions = binding.txtInstructions.text.toString().trim()
 
-            if (!validateInputs(medicationName, dosage, expirationDateString, stockLevel)) return@setOnClickListener
+            if (!validateInputs(
+                    medicationName,
+                    dosage,
+                    expirationDateString,
+                    stockLevel,
+                    instructions
+                )
+            ) return@setOnClickListener
 
             // Create Medication object
             val medication = Medication(
@@ -94,6 +111,7 @@ class AddPatientMedicationFragment : Fragment() {
                 dosage = dosage,
                 expirationDate = expirationDateString, // Store the string directly
                 stockLevel = stockLevel.toInt(),
+                instruction = instructions,
                 medicationPhoto = medicationPhotoBlob,
                 medicationStatus = "Active",
                 userId = targetUserId.toString()
@@ -101,35 +119,191 @@ class AddPatientMedicationFragment : Fragment() {
 
             // Save medication
             medicationVM.setMedication(medication)
+
+            // Show loading dialog
+            loadingDialog = AlertDialog.Builder(requireContext())
+                .setTitle("Checking Drug Safety")
+                .setMessage("Loading...")
+                .setCancelable(false)
+                .create()
+            loadingDialog?.show()
+
+            // Launch a coroutine to fetch data and show the dialog
+            viewLifecycleOwner.lifecycleScope.launch {
+                showAdverseEventDialog()
+            }
+
+            // Show confirmation toast
+            // Toast will be shown after the dialog is dismissed
+        }
+
+        return binding.root
+    }
+
+    private suspend fun showAdverseEventDialog() {
+        try {
+            val medicationName = binding.txtMedicationName.text.toString().trim().uppercase(Locale.getDefault())
+            val info = adverseEventVM.getHealthInfo(medicationName)
+
+            loadingDialog?.dismiss()
+            if (info.isNotEmpty()) {
+                showCustomAdverseEventDialog(info)
+            } else {
+                showNoAdverseEventsDialog()
+            }
+        } catch (e: Exception) {
+            loadingDialog?.dismiss()
+            Toast.makeText(requireContext(), "Error checking drug information", Toast.LENGTH_SHORT).show()
+            nav.navigateUp()
+            Log.e(TAG, "Error in showAdverseEventDialog", e)
+        }
+    }
+
+    private fun showCustomAdverseEventDialog(info: List<DetailedHealthInfo>) {
+        // Inflate custom dialog layout
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_adverse_events, null)
+        val eventsContainer = dialogView.findViewById<LinearLayout>(R.id.eventsContainer)
+        val btnUnderstood = dialogView.findViewById<Button>(R.id.btnUnderstood)
+
+        // Populate the events
+        populateAdverseEvents(eventsContainer, info)
+
+        // Build and show the dialog
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        btnUnderstood.setOnClickListener {
+            dialog.dismiss()
             Toast.makeText(requireContext(), "Medication Added", Toast.LENGTH_SHORT).show()
             nav.navigateUp()
         }
 
+        dialog.show()
+    }
 
-        return binding.root
+    private fun showNoAdverseEventsDialog() {
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle("No Adverse Events Found")
+            .setMessage("No known adverse events were found for this medication.")
+            .setPositiveButton("OK") { _, _ ->
+                Toast.makeText(requireContext(), "Medication Added", Toast.LENGTH_SHORT).show()
+                nav.navigateUp()
+            }
+            .setCancelable(false)
+            .create()
+        dialog.show()
+    }
+
+    private fun populateAdverseEvents(container: LinearLayout, info: List<DetailedHealthInfo>) {
+        try {
+            info.forEach { healthInfo ->
+                val itemView = LayoutInflater.from(requireContext())
+                    .inflate(R.layout.item_adverse_event, container, false)
+
+                val imgSeverityIcon = itemView.findViewById<ImageView>(R.id.imgSeverityIcon)
+                val txtAdverseEvent = itemView.findViewById<TextView>(R.id.txtAdverseEvent)
+                val txtEventDetails = itemView.findViewById<TextView>(R.id.txtEventDetails)
+
+                // Set the adverse event name
+                txtAdverseEvent.text = healthInfo.adverseEvent
+
+                // Set the severity icon and color
+                val (iconRes, colorRes) = getSeverityIconAndColor(healthInfo.severity)
+                imgSeverityIcon.setImageResource(iconRes)
+                imgSeverityIcon.setColorFilter(
+                    ContextCompat.getColor(requireContext(), colorRes),
+                    android.graphics.PorterDuff.Mode.SRC_IN
+                )
+
+                // Set the event details
+                val detailsBuilder = StringBuilder()
+                if (!healthInfo.summary.isNullOrEmpty()) {
+                    detailsBuilder.append(healthInfo.summary).append("\n\n")
+                }
+                if (!healthInfo.recommendations.isNullOrEmpty()) {
+                    detailsBuilder.append("Recommendations:\n")
+                    healthInfo.recommendations.take(3).forEach {
+                        detailsBuilder.append("• $it\n")
+                    }
+                }
+                txtEventDetails.text = detailsBuilder.toString()
+
+                // Add the item to the container
+                container.addView(itemView)
+            }
+            Log.d(TAG, "populateAdverseEvents completed successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in populateAdverseEvents", e)
+        }
+    }
+
+    private fun getSeverityIconAndColor(severity: String?): Pair<Int, Int> {
+        return when (severity?.toLowerCase(Locale.ROOT)) {
+            "high" -> Pair(R.drawable.ic_warning, R.color.severityHigh)
+            "medium" -> Pair(R.drawable.ic_warning, R.color.severityMedium)
+            "low" -> Pair(R.drawable.ic_warning, R.color.severityLow)
+            else -> Pair(R.drawable.ic_warning, R.color.severityUnknown)
+        }
+    }
+
+    override fun onDestroyView() {
+        loadingDialog?.dismiss()
+        super.onDestroyView()
+    }
+
+    private fun formatHealthInfo(info: List<DetailedHealthInfo>): String {
+        return buildString {
+            info.forEach { healthInfo ->
+                append("❗ ${healthInfo.adverseEvent}\n")
+                append("Severity: ${healthInfo.severity}\n")
+                if (!healthInfo.recommendations.isNullOrEmpty()) {
+                    append("\nRecommendations:\n")
+                    healthInfo.recommendations.take(3).forEach {
+                        append("• $it\n")
+                    }
+                }
+                append("\n")
+            }
+        }
     }
 
     private fun requestPermissionsIfNecessary() {
         val permissions = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED) {
+            != PackageManager.PERMISSION_GRANTED
+        ) {
             permissions.add(Manifest.permission.CAMERA)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_MEDIA_IMAGES)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.READ_MEDIA_IMAGES
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
             }
         } else {
-            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                )
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
 
         if (permissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(requireActivity(), permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                permissions.toTypedArray(),
+                PERMISSION_REQUEST_CODE
+            )
         }
     }
 
@@ -154,38 +328,103 @@ class AddPatientMedicationFragment : Fragment() {
         }
     }
 
-    private fun showImagePickerOptions() {
+    // Functions for selecting medication photo (no OCR)
+    private fun showImagePickerOptionsForPhoto() {
         val options = arrayOf("Take Photo", "Choose from Gallery")
 
         val builder = AlertDialog.Builder(requireContext())
         builder.setTitle("Select Option")
         builder.setItems(options) { dialog, which ->
             when (which) {
-                0 -> captureImageFromCamera()
-                1 -> pickImageFromGallery()
+                0 -> captureImageFromCameraForPhoto()
+                1 -> pickImageFromGalleryForPhoto()
             }
         }
         builder.show()
     }
 
-    private fun captureImageFromCamera() {
+    private fun captureImageFromCameraForPhoto() {
         val photoFile = createImageFile()
         photoURI = FileProvider.getUriForFile(
             requireContext(),
             "${requireContext().packageName}.provider",
             photoFile
         )
-        captureImageLauncher.launch(photoURI)
+        captureImageLauncherForPhoto.launch(photoURI)
     }
 
-    private val captureImageLauncher =
+    private fun pickImageFromGalleryForPhoto() {
+        getMedicationImageForPhoto.launch("image/*")
+    }
+
+    private val captureImageLauncherForPhoto =
         registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success) {
                 handleCapturedImage()
+                // Do not perform OCR here
             } else {
                 Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
             }
         }
+
+    private val getMedicationImageForPhoto =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                processSelectedImage(it)
+                // Do not perform OCR here
+            }
+        }
+
+    // Functions for scanning medication info (with OCR)
+    private fun showImagePickerOptionsForOCR() {
+        val options = arrayOf("Take Photo", "Choose from Gallery")
+
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Select Option")
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> captureImageFromCameraForOCR()
+                1 -> pickImageFromGalleryForOCR()
+            }
+        }
+        builder.show()
+    }
+
+    private fun captureImageFromCameraForOCR() {
+        val photoFile = createImageFile()
+        photoURI = FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            photoFile
+        )
+        captureImageLauncherForOCR.launch(photoURI)
+    }
+
+    private fun pickImageFromGalleryForOCR() {
+        getMedicationImageForOCR.launch("image/*")
+    }
+
+    private val captureImageLauncherForOCR =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                processImageForOCR(photoURI)
+            } else {
+                Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private val getMedicationImageForOCR =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                processImageForOCR(it)
+            }
+        }
+
+    private fun processImageForOCR(uri: Uri) {
+        // Optionally, display the image if desired
+        // Then perform OCR
+        performOCR(uri)
+    }
 
     @Throws(IOException::class)
     private fun createImageFile(): File {
@@ -227,17 +466,6 @@ class AddPatientMedicationFragment : Fragment() {
             e.printStackTrace()
         }
     }
-
-    private fun pickImageFromGallery() {
-        getMedicationImage.launch("image/*")
-    }
-
-    private val getMedicationImage =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let {
-                processSelectedImage(it)
-            }
-        }
 
     private fun processSelectedImage(uri: Uri) {
         try {
@@ -308,7 +536,8 @@ class AddPatientMedicationFragment : Fragment() {
         medicationName: String,
         dosage: String,
         expirationDateString: String,
-        stockLevel: String
+        stockLevel: String,
+        instructions: String
     ): Boolean {
         var isValid = true
 
@@ -359,102 +588,32 @@ class AddPatientMedicationFragment : Fragment() {
         return isValid
     }
 
-
-    private fun showOCRImagePickerOptions() {
-        val options = arrayOf("Take Photo", "Choose from Gallery")
-
-        val builder = AlertDialog.Builder(requireContext())
-        builder.setTitle("Select Option")
-        builder.setItems(options) { dialog, which ->
-            when (which) {
-                0 -> captureImageFromCameraForOCR()
-                1 -> pickImageFromGalleryForOCR()
-            }
-        }
-        builder.show()
-    }
-
-    private fun captureImageFromCameraForOCR() {
-        val photoFile = createImageFileForOCR()
-        ocrImageUri = FileProvider.getUriForFile(
-            requireContext(),
-            "${requireContext().packageName}.provider",
-            photoFile
-        )
-        captureOCRImageLauncher.launch(ocrImageUri)
-    }
-
-    private val captureOCRImageLauncher =
-        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-            if (success) {
-                handleCapturedImageForOCR()
-            } else {
-                Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    @Throws(IOException::class)
-    private fun createImageFileForOCR(): File {
-        val timeStamp: String =
-            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val storageDir: File? =
-            requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        return File.createTempFile(
-            "OCR_${timeStamp}_",
-            ".jpg",
-            storageDir
-        )
-    }
-
-    private fun pickImageFromGalleryForOCR() {
-        getOCRImage.launch("image/*")
-    }
-
-    private val getOCRImage =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let {
-                processOCRImage(it)
-            }
-        }
-
-    private fun handleCapturedImageForOCR() {
-        try {
-            processOCRImage(ocrImageUri)
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
-            e.printStackTrace()
-        }
-    }
-
-    private fun processOCRImage(uri: Uri) {
+    /**
+     * Performs OCR on the provided image URI and updates the form fields.
+     */
+    private fun performOCR(uri: Uri) {
         try {
             val inputStream = requireContext().contentResolver.openInputStream(uri)
             val originalBitmap = BitmapFactory.decodeStream(inputStream)
 
-            // You may need to rotate the image if necessary
-            //val fixedBitmap = rotateImageIfRequired(originalBitmap, uri)
+            // Create InputImage
+            val image = InputImage.fromBitmap(originalBitmap, 0)
 
-            // Process the image with ML Kit
-            processImageWithMLKit(originalBitmap)
+            // Initialize Text Recognizer
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    extractMedicationInfo(visionText)
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(requireContext(), "Failed to recognize text", Toast.LENGTH_SHORT).show()
+                    e.printStackTrace()
+                }
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Failed to perform OCR", Toast.LENGTH_SHORT).show()
             e.printStackTrace()
         }
-    }
-
-    private fun processImageWithMLKit(bitmap: Bitmap) {
-        val image = InputImage.fromBitmap(bitmap, 0)
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                // Extract information from the recognized text
-                extractMedicationInfo(visionText)
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(requireContext(), "Failed to recognize text", Toast.LENGTH_SHORT).show()
-                e.printStackTrace()
-            }
     }
 
     private fun extractMedicationInfo(visionText: Text) {
@@ -472,14 +631,14 @@ class AddPatientMedicationFragment : Fragment() {
         val lines = fullText.split("\n")
 
         // Define regex patterns
-        // Medication Name: capture text up to the dosage number
+        // Medication Name: text ending with "MG" or "ML"
         val medicationNameRegex = Regex(
-            """^([A-Za-z\s\-]+?)(?:\s*[-]*)\d+""",
+            """^([A-Za-z\s\-]+?)\s+\d+(mg|ml)""",
             RegexOption.IGNORE_CASE
         )
-        // Dosage Extraction: numbers before "tablet" or "capsule", with optional space
+        // Dosage Extraction: numbers followed by "tablet" or "capsule"
         val dosageRegex = Regex(
-            """\b(\d+(\.\d+)?)\s*(tablet|capsule)\b""",
+            """\b(\d+(\.\d+)?)\s*(tablet|capsule|tablets|capsules)\b""",
             RegexOption.IGNORE_CASE
         )
         // Dosage Instruction Extraction: text within parentheses following dosage
@@ -487,12 +646,12 @@ class AddPatientMedicationFragment : Fragment() {
             """\((\d+\s+TIMES\s+PER\s+DAY)\)""",
             RegexOption.IGNORE_CASE
         )
-        // Instructions Extraction: text within parentheses OR text starting with instruction verbs anywhere in the line
+        // Instructions Extraction: text within parentheses OR text starting with instruction verbs
         val instructionsRegex = Regex(
-            """\(([^)]+)\)|\b(?:take|dose|apply|use|instill|inhale)\b\s+([^.\\n]+)""",
+            """\(([^)]+)\)|\b(?:take|dose|apply|use|instill|inhale|drink|swallow|insert)\b\s+([^.\\n]+)""",
             RegexOption.IGNORE_CASE
         )
-        // Expiration Date Extraction: prioritize "Expiry" over "Date", allow trailing punctuation
+        // Expiration Date Extraction: prioritize "Expiry" over "Date"
         val expiryDateRegex = Regex(
             """\b(expiry|exp|expires?|expiration)\s*[:\-]?\s*(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b.*""",
             RegexOption.IGNORE_CASE
@@ -578,32 +737,6 @@ class AddPatientMedicationFragment : Fragment() {
                         Log.d("ExtractMedicationInfo", "Found Medication Name: $medicationName")
                     }
                     continue
-                } else {
-                    // If no match, try to see if the entire line is a medication name
-                    // If line does not contain numbers or dosage units
-                    if (
-                        !lowerLine.contains(Regex("""\d""")) &&
-                        !lowerLine.contains(
-                            Regex(
-                                """\b(tab|tablet|capsule)\b""",
-                                RegexOption.IGNORE_CASE
-                            )
-                        )
-                    ) {
-                        medicationName = trimmedLine
-                        Log.d("ExtractMedicationInfo", "Assumed Medication Name: $medicationName")
-                        continue
-                    }
-                }
-            }
-
-            // Extract Dosage Instruction (e.g., "(3 TIMES PER DAY)")
-            if (instructions == null) {
-                val dosageInstructionMatch = dosageInstructionRegex.find(line)
-                if (dosageInstructionMatch != null) {
-                    instructions = dosageInstructionMatch.groups[1]?.value?.trim()
-                    Log.d("ExtractMedicationInfo", "Found Instructions from Dosage Instruction: $instructions")
-                    continue
                 }
             }
 
@@ -617,17 +750,14 @@ class AddPatientMedicationFragment : Fragment() {
                 }
             }
 
-            // Extract Instructions from any parentheses or starting with verbs
+            // Extract Instructions
             if (instructions == null) {
                 val instructionsMatch = instructionsRegex.find(line)
                 if (instructionsMatch != null) {
                     val parenthetical = instructionsMatch.groups[1]?.value?.trim()
                     val verbInstruction = instructionsMatch.groups[2]?.value?.trim()
                     instructions = parenthetical ?: verbInstruction
-                    Log.d(
-                        "ExtractMedicationInfo",
-                        "Found Instructions: ${instructions ?: "null"}"
-                    )
+                    Log.d("ExtractMedicationInfo", "Found Instructions: ${instructions ?: "null"}")
                     continue
                 }
             }
@@ -647,19 +777,6 @@ class AddPatientMedicationFragment : Fragment() {
             }
         }
 
-        // Attempt to find stock level in the entire text if not found line-by-line
-        if (stockLevel == null) {
-            val stockLevelMatch = stockLevelRegex.find(fullText)
-            if (stockLevelMatch != null) {
-                val qtyString = stockLevelMatch.groups[1]?.value
-                val qty = qtyString?.toIntOrNull()
-                if (qty != null) {
-                    stockLevel = qty
-                    Log.d("ExtractMedicationInfo", "Found Stock Level from Full Text: $stockLevel")
-                }
-            }
-        }
-
         // Final Logging
         Log.d("ExtractMedicationInfo", "Final Extracted Information:")
         Log.d("ExtractMedicationInfo", "Medication Name: $medicationName")
@@ -672,59 +789,33 @@ class AddPatientMedicationFragment : Fragment() {
         requireActivity().runOnUiThread {
             medicationName?.let {
                 binding.txtMedicationName.setText(it)
-                // Highlight the field to indicate it was auto-filled
                 binding.txtMedicationName.background =
-                    ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.auto_filled_background
-                    )
+                    ContextCompat.getDrawable(requireContext(), R.drawable.auto_filled_background)
             }
             dosage?.let {
                 binding.txtDosage.setText(it)
                 binding.txtDosage.background =
-                    ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.auto_filled_background
-                    )
+                    ContextCompat.getDrawable(requireContext(), R.drawable.auto_filled_background)
             }
             expirationDate?.let {
                 binding.txtExpirationDate.setText(it)
                 binding.txtExpirationDate.background =
-                    ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.auto_filled_background
-                    )
+                    ContextCompat.getDrawable(requireContext(), R.drawable.auto_filled_background)
             }
             instructions?.let {
                 binding.txtInstructions.setText(it)
                 binding.txtInstructions.background =
-                    ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.auto_filled_background
-                    )
+                    ContextCompat.getDrawable(requireContext(), R.drawable.auto_filled_background)
             }
             stockLevel?.let {
                 binding.txtStockLevel.setText(it.toString())
                 binding.txtStockLevel.background =
-                    ContextCompat.getDrawable(
-                        requireContext(),
-                        R.drawable.auto_filled_background
-                    )
+                    ContextCompat.getDrawable(requireContext(), R.drawable.auto_filled_background)
             }
         }
     }
 
 
-    /**
-     * Formats the complete date by ensuring the year is in four-digit format.
-     * If the year is two digits, it converts it to four digits by prefixing "20".
-     * Assumes the date format is DD/MM/YYYY or DD/MM/YY.
-     *
-     * @param day The day part of the date.
-     * @param month The month part of the date.
-     * @param year The year part of the date (can be two or four digits).
-     * @return The formatted date string in "dd/MM/yyyy" format or null if invalid.
-     */
     private fun formatCompleteDate(day: String?, month: String?, year: String?): String? {
         return if (day != null && month != null && year != null) {
             val formattedYear = formatYear(year)
@@ -738,14 +829,6 @@ class AddPatientMedicationFragment : Fragment() {
         }
     }
 
-    /**
-     * Formats the year to four digits based on its original length.
-     * - If the year is two digits, it prefixes "20" to make it four digits (e.g., "20" -> "2020").
-     * - If the year is already four digits, it remains unchanged.
-     *
-     * @param year The year string extracted from the date.
-     * @return The formatted four-digit year string or null if invalid.
-     */
     private fun formatYear(year: String?): String? {
         return year?.let {
             when (it.length) {

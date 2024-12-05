@@ -9,8 +9,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.data.Reminder
 import com.example.trackurpill.databinding.ReminderItemBinding
 
-class ReminderAdapter(val onDelete: (Reminder) -> Unit) :
-    ListAdapter<Reminder, ReminderAdapter.ViewHolder>(DiffCallback) {
+class ReminderAdapter(
+    val onDelete: (Reminder) -> Unit,
+    val onEdit: (Reminder) -> Unit // Add callback for editing
+) : ListAdapter<Reminder, ReminderAdapter.ViewHolder>(DiffCallback) {
 
     companion object DiffCallback : DiffUtil.ItemCallback<Reminder>() {
         override fun areItemsTheSame(oldItem: Reminder, newItem: Reminder) =
@@ -50,6 +52,11 @@ class ReminderAdapter(val onDelete: (Reminder) -> Unit) :
         holder.binding.deleteReminderButton.setOnClickListener {
             onDelete(reminder)
         }
-    }
 
+        // Set click listener for editing
+        holder.binding.root.setOnClickListener {
+            onEdit(reminder) // Trigger edit callback
+        }
+    }
 }
+

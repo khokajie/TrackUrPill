@@ -1,5 +1,7 @@
 package com.example.trackurpill
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -178,17 +180,32 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.show()
     }
 
+    private fun createInvitationNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "INVITATION_CHANNEL",
+                "Caregiver Invitations",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications for caregiver invitations"
+            }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannelCompat.Builder(
+            val channel = NotificationChannel(
                 "REMINDER_CHANNEL",
-                NotificationManagerCompat.IMPORTANCE_HIGH
-            )
-                .setName("Medication Reminders")
-                .setDescription("Notifications for scheduled medication reminders")
-                .build()
-
-            NotificationManagerCompat.from(this).createNotificationChannel(channel)
+                "Medication Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Channel for medication reminder notifications"
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
         }
     }
 

@@ -71,5 +71,23 @@ dependencies {
     //for the OCR model
     implementation ("com.google.mlkit:text-recognition:16.0.0-beta5")
 
+// Retrofit
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    // Coroutines
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+
+    // Gson (for JSON parsing)
+    implementation ("com.google.code.gson:gson:2.8.9")
+
+    implementation ("com.tickaroo.tikxml:annotation:0.8.13")
+    implementation ("com.tickaroo.tikxml:core:0.8.13")
+    implementation ("com.tickaroo.tikxml:retrofit-converter:0.8.13")
+
+    implementation ("com.tickaroo.tikxml:processor:0.8.13")
+
+    implementation ("com.squareup.retrofit2:converter-simplexml:2.9.0")
+
+    implementation ("com.squareup.okhttp3:okhttp:4.9.1")
 
 }
