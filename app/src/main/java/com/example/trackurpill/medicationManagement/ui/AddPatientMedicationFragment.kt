@@ -99,6 +99,7 @@ class AddPatientMedicationFragment : Fragment() {
                     medicationName,
                     dosage,
                     expirationDateString,
+                    targetUserId.toString(),
                     stockLevel,
                     instructions
                 )
@@ -109,7 +110,7 @@ class AddPatientMedicationFragment : Fragment() {
                 medicationId = UUID.randomUUID().toString(),
                 medicationName = medicationName,
                 dosage = dosage,
-                expirationDate = expirationDateString, // Store the string directly
+                expirationDate = expirationDateString,
                 stockLevel = stockLevel.toInt(),
                 instruction = instructions,
                 medicationPhoto = medicationPhotoBlob,
@@ -133,8 +134,6 @@ class AddPatientMedicationFragment : Fragment() {
                 showAdverseEventDialog()
             }
 
-            // Show confirmation toast
-            // Toast will be shown after the dialog is dismissed
         }
 
         return binding.root
@@ -535,19 +534,32 @@ class AddPatientMedicationFragment : Fragment() {
     private fun validateInputs(
         medicationName: String,
         dosage: String,
-        expirationDateString: String,
+        expirationDate: String,
+        currentUserId: String,
         stockLevel: String,
-        instructions: String
+        instructions: String,
+
     ): Boolean {
         var isValid = true
 
+        // Check if medication name is empty
         if (medicationName.isEmpty()) {
             binding.txtLayoutMedicationName.error = "Medication name cannot be empty"
             isValid = false
         } else {
-            binding.txtLayoutMedicationName.error = null
+            // Check if medication name already exists for the current user
+            val existingMedications = medicationVM.getAllByUser(currentUserId)
+            val isNameExists = existingMedications.any { it.medicationName.equals(medicationName, ignoreCase = true) }
+
+            if (isNameExists) {
+                binding.txtLayoutMedicationName.error = "This medication already exists"
+                isValid = false
+            } else {
+                binding.txtLayoutMedicationName.error = null
+            }
         }
 
+        // Check if dosage is empty
         if (dosage.isEmpty()) {
             binding.txtLayoutDosage.error = "Dosage cannot be empty"
             isValid = false
@@ -555,12 +567,10 @@ class AddPatientMedicationFragment : Fragment() {
             binding.txtLayoutDosage.error = null
         }
 
-        if (expirationDateString.isEmpty()) {
-            binding.txtLayoutExpirationDate.error = "Expiration date cannot be empty"
-            isValid = false
-        } else {
+        // Expiration date can be null or empty, no validation required
+        if (expirationDate.isNotEmpty()) {
             try {
-                val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(expirationDateString)
+                val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(binding.txtExpirationDate.text.toString())
                 if (date.before(Calendar.getInstance().time)) {
                     binding.txtLayoutExpirationDate.error = "Expiration date cannot be in the past"
                     isValid = false
@@ -571,8 +581,11 @@ class AddPatientMedicationFragment : Fragment() {
                 binding.txtLayoutExpirationDate.error = "Invalid date format. Use dd/MM/yyyy"
                 isValid = false
             }
+        } else {
+            binding.txtLayoutExpirationDate.error = null
         }
 
+        // Check if stock level is a valid positive number
         if (stockLevel.isEmpty() || stockLevel.toIntOrNull() == null || stockLevel.toInt() < 0) {
             binding.txtLayoutStockLevel.error = "Stock level must be a positive number"
             isValid = false
@@ -580,13 +593,17 @@ class AddPatientMedicationFragment : Fragment() {
             binding.txtLayoutStockLevel.error = null
         }
 
-        if (medicationPhotoBlob == null) {
-            Toast.makeText(requireContext(), "Please upload a photo", Toast.LENGTH_SHORT).show()
+        // Instructions cannot be empty
+        if (instructions.isEmpty()) {
+            binding.txtLayoutInstructions.error = "Instructions cannot be empty"
             isValid = false
+        } else {
+            binding.txtLayoutInstructions.error = null
         }
 
         return isValid
     }
+
 
     /**
      * Performs OCR on the provided image URI and updates the form fields.
