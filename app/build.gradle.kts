@@ -59,6 +59,8 @@ dependencies {
     //firebase
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-analytics")
+    implementation ("com.google.firebase:firebase-messaging-ktx")
+    implementation ("com.google.firebase:firebase-functions-ktx")
 
     //glide for show the image
     implementation("com.github.bumptech.glide:glide:4.15.1")

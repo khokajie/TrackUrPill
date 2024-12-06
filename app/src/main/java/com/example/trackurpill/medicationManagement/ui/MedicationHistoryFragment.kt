@@ -11,9 +11,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trackurpill.databinding.FragmentMedicationHistoryBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
-import com.example.trackurpill.medicationManagement.util.MedicationAdapter
-import com.example.trackurpill.medicationManagement.util.ReminderAdapter
-import com.example.trackurpill.util.ReminderScheduler
+
 import com.google.firebase.auth.FirebaseAuth
 
 class MedicationHistoryFragment : Fragment() {

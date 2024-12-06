@@ -1,4 +1,4 @@
-package com.example.trackurpill.notification
+package com.example.trackurpill.util
 
 import android.app.AlarmManager
 import android.app.PendingIntent

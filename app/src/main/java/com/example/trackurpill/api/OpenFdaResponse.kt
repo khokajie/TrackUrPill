@@ -38,3 +38,4 @@ sealed class ApiResult<out T> {
     data class Error(val exception: Exception): ApiResult<Nothing>()
 }
 
+

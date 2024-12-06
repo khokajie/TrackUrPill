@@ -212,10 +212,8 @@ class AddPatientMedicationFragment : Fragment() {
                 // Set the severity icon and color
                 val (iconRes, colorRes) = getSeverityIconAndColor(healthInfo.severity)
                 imgSeverityIcon.setImageResource(iconRes)
-                imgSeverityIcon.setColorFilter(
-                    ContextCompat.getColor(requireContext(), colorRes),
-                    android.graphics.PorterDuff.Mode.SRC_IN
-                )
+                imgSeverityIcon.imageTintList = ContextCompat.getColorStateList(requireContext(), colorRes)
+
 
                 // Set the event details
                 val detailsBuilder = StringBuilder()
@@ -253,21 +251,6 @@ class AddPatientMedicationFragment : Fragment() {
         super.onDestroyView()
     }
 
-    private fun formatHealthInfo(info: List<DetailedHealthInfo>): String {
-        return buildString {
-            info.forEach { healthInfo ->
-                append("❗ ${healthInfo.adverseEvent}\n")
-                append("Severity: ${healthInfo.severity}\n")
-                if (!healthInfo.recommendations.isNullOrEmpty()) {
-                    append("\nRecommendations:\n")
-                    healthInfo.recommendations.take(3).forEach {
-                        append("• $it\n")
-                    }
-                }
-                append("\n")
-            }
-        }
-    }
 
     private fun requestPermissionsIfNecessary() {
         val permissions = mutableListOf<String>()

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+
+
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -22,6 +24,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TrackUrPill"
         tools:targetApi="31">
+
+        <service
+            android:name=".util.FCMService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
     <activity
         android:name=".MainActivity"
         android:windowSoftInputMode="adjustPan"
@@ -34,10 +45,10 @@
     </activity>
 
         <receiver
-            android:name=".notification.ReminderBroadcastReceiver"
+            android:name=".util.ReminderBroadcastReceiver"
             android:exported="true" />
 
-        <receiver android:name=".notification.ReminderActionReceiver" />
+        <receiver android:name=".util.ReminderActionReceiver" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -50,6 +61,8 @@
         </provider>
 
     </application>
+
+
 
 
 </manifest>

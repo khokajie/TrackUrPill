@@ -1,4 +1,4 @@
-package com.example.trackurpill.notification.util
+package com.example.trackurpill.util
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -8,7 +8,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.R
 import com.example.trackurpill.data.Notification
-import com.example.trackurpill.notification.ReminderActionReceiver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.Date

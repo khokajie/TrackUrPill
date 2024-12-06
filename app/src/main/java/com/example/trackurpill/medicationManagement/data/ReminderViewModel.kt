@@ -1,12 +1,18 @@
 package com.example.trackurpill.medicationManagement.data
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import com.example.trackurpill.data.REMINDER
 import com.example.trackurpill.data.Reminder
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObjects
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ReminderViewModel(app: Application) : AndroidViewModel(app) {
     private val reminderLD = MutableLiveData<List<Reminder>>(emptyList())
@@ -22,6 +28,34 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
         listener = REMINDER.addSnapshotListener { snap, _ ->
             reminderLD.value = snap?.toObjects()
             updateResult()
+        }
+    }
+
+    private val functions = Firebase.functions
+
+    fun setReminder(reminder: Reminder) {
+        viewModelScope.launch {
+            // Save reminder to Firestore as before
+            REMINDER.document(reminder.reminderId).set(reminder)
+
+            // Schedule FCM reminder
+            scheduleReminder(reminder)
+        }
+    }
+
+    private suspend fun scheduleReminder(reminder: Reminder) {
+        try {
+            val data = hashMapOf(
+                "reminder" to reminder, // Send entire Reminder object
+                "medicationId" to reminder.medicationId
+            )
+
+            functions
+                .getHttpsCallable("scheduleReminder")
+                .call(data)
+                .await()
+        } catch (e: Exception) {
+            Log.e("ReminderViewModel", "Error scheduling reminder", e)
         }
     }
 
@@ -43,11 +77,6 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
 
     // Get reminders for a specific medication
     fun getAllByMedication(medicationId: String) = getAll().filter { it.medicationId == medicationId }
-
-    // Add or update reminder
-    fun setReminder(reminder: Reminder) {
-        REMINDER.document(reminder.reminderId).set(reminder)
-    }
 
     // Delete a reminder
     fun deleteReminder(reminderId: String) {
