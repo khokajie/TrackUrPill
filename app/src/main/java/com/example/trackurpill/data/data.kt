@@ -26,7 +26,8 @@ open class User(
     open var userEmail: String = "",
     open var userAge: Int = 0,
     open var userPhoto: Blob? = null, // Use Blob for binary data
-    open var isCaregiver: Boolean = false // Differentiates Patient and Caregiver
+    open var isCaregiver: Boolean = false, // Differentiates Patient and Caregiver
+    open var fcmToken: String? = null // Add an fcmToken field
 )
 
 // Patient Data Model
@@ -37,8 +38,9 @@ data class Patient(
     override var userEmail: String = "",
     override var userAge: Int = 0,
     override var userPhoto: Blob? = null,
-    override var isCaregiver: Boolean = false
-) : User(userId, userName, userEmail,  userAge, userPhoto, isCaregiver)
+    override var isCaregiver: Boolean = false,
+    override var fcmToken: String? = null // Include fcmToken
+) : User(userId, userName, userEmail, userAge, userPhoto, isCaregiver, fcmToken)
 
 // Caregiver Data Model
 data class Caregiver(
@@ -49,8 +51,10 @@ data class Caregiver(
     override var userAge: Int = 0,
     override var userPhoto: Blob? = null,
     override var isCaregiver: Boolean = true,
+    override var fcmToken: String? = null, // Include fcmToken
     var patientList: List<String> = emptyList() // IDs of assigned patients
-) : User(userId, userName, userEmail, userAge, userPhoto, isCaregiver)
+) : User(userId, userName, userEmail, userAge, userPhoto, isCaregiver, fcmToken)
+
 
 
 // Medication Data Model
@@ -75,7 +79,8 @@ data class Reminder(
     var minute: Int = 0,     // Stores the minute of the reminder
     var frequency: String = "", // e.g., Daily, Weekly, Once
     var day: String? = null,    // Optional: Stores the day for weekly reminders
-    var medicationId: String = "" // Link to Medication
+    var medicationId: String = "", // Link to Medication
+    val userTimeZone: String = "" // New field
 )
 
 // Health Record Data Model
@@ -105,7 +110,6 @@ data class MedicationLog(
 )
 
 data class Notification(
-    @DocumentId
     var notificationId: String = "",
     var message: String = "",
     var receiveTime: Date = Date(),

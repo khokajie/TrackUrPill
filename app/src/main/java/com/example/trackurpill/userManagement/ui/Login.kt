@@ -3,6 +3,7 @@ package com.example.trackurpill.userManagement.ui
 import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +21,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.launch
 
 class Login : Fragment() {
@@ -29,6 +32,7 @@ class Login : Fragment() {
     private val authViewModel: AuthViewModel by activityViewModels()
     private val userViewModel: LoggedInUserViewModel by activityViewModels()
     private val firebaseAuth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -74,9 +78,10 @@ class Login : Fragment() {
             try {
                 val (role, userId) = authViewModel.login(email, password)
                 if (role != "NA" && userId != null) {
-                    storeUserSession(userId.toString(), role)
-                    userViewModel.setLoggedInUser(role, userId.toString())
+                    storeUserSession(userId, role)
+                    userViewModel.setLoggedInUser(role, userId)
                     println("User logged in")
+                    updateFCMToken(userId, role) // Update FCM token after login
                     navigateBasedOnRole(role)
                 } else {
                     showToast("Invalid email or password.")
@@ -140,7 +145,6 @@ class Login : Fragment() {
         dialog.show()
     }
 
-
     private fun sendPasswordResetEmail(email: String) {
         firebaseAuth.sendPasswordResetEmail(email)
             .addOnCompleteListener { task ->
@@ -151,7 +155,6 @@ class Login : Fragment() {
                 }
             }
     }
-
 
     private fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -177,5 +180,44 @@ class Login : Fragment() {
         requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigationView).visibility = View.VISIBLE
         (requireActivity() as MainActivity).showTopAppBar()
         super.onPause()
+    }
+
+    /**
+     * Retrieves the FCM token and updates it in Firestore.
+     */
+    private fun updateFCMToken(userId: String, role: String) {
+        FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    Log.w("Login", "Fetching FCM registration token failed", task.exception)
+                    return@addOnCompleteListener
+                }
+
+                // Get new FCM registration token
+                val token = task.result
+
+                // Update the token in Firestore based on user type
+                if (role == "Caregiver") {
+                    firestore.collection("Caregiver").document(userId)
+                        .update("fcmToken", token)
+                        .addOnSuccessListener {
+                            Log.d("Login", "FCM token updated for Caregiver.")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Login", "Failed to update FCM token for Caregiver", e)
+                        }
+                } else if (role == "Patient") {
+                    firestore.collection("Patient").document(userId)
+                        .update("fcmToken", token)
+                        .addOnSuccessListener {
+                            Log.d("Login", "FCM token updated for Patient.")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Login", "Failed to update FCM token for Patient", e)
+                        }
+                } else {
+                    Log.e("Login", "Unknown user role: $role")
+                }
+            }
     }
 }

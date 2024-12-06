@@ -1,166 +1,154 @@
 package com.example.trackurpill.util
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
-import com.example.trackurpill.notification.ReminderBroadcastReceiver
-import java.util.*
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
+import java.util.UUID
 
 object ReminderScheduler {
+    private val functions: FirebaseFunctions = Firebase.functions
+    private const val TAG = "ReminderScheduler"
 
-    // Schedules a one-time reminder
+    /**
+     * A generic function to schedule a reminder with all necessary fields.
+     *
+     * @param context The application context
+     * @param reminderId Unique ID of the reminder
+     * @param medicationId The ID of the medication
+     * @param medicationName The name of the medication (optional for display)
+     * @param dosage The dosage of the medication (optional for display)
+     * @param userId The ID of the user
+     * @param frequency The frequency of the reminder ("Once", "Daily", or "Weekly")
+     * @param hour The hour of the reminder (0-23)
+     * @param minute The minute of the reminder (0-59)
+     * @param date The date of the reminder (required if frequency is "Once")
+     * @param day The day of the week for the reminder (required if frequency is "Weekly")
+     */
+    fun scheduleReminder(
+        context: Context,
+        reminderId: String,
+        medicationId: String,
+        medicationName: String,
+        dosage: String,
+        userId: String,
+        frequency: String,
+        hour: Int,
+        minute: Int,
+        date: String? = null,
+        day: String? = null
+    ) {
+        val reminderData = hashMapOf(
+            "reminderId" to reminderId,
+            "medicationId" to medicationId,
+            "frequency" to frequency,
+            "hour" to hour,
+            "minute" to minute
+        )
+
+        if (date != null) {
+            reminderData["date"] = date
+        }
+
+        if (day != null) {
+            reminderData["day"] = day
+        }
+
+        val data = hashMapOf("reminder" to reminderData)
+
+        functions.getHttpsCallable("scheduleReminder")
+            .call(data)
+            .addOnSuccessListener {
+                Log.d(TAG, "Reminder scheduled successfully")
+                Toast.makeText(context, "Reminder scheduled", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to schedule reminder", e)
+                Toast.makeText(context, "Failed to schedule: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    /**
+     * For "Once" type reminders.
+     */
     fun scheduleReminderAt(
         context: Context,
-        reminderTimeMillis: Long,
-        medicationName: String,
-        medicationId: String,
-        dosage: String,
-        userId: String
-    ) {
-        val intent = createIntent(context, medicationName, medicationId, dosage, userId)
-        val pendingIntent = createPendingIntent(context, medicationId, intent)
-
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            requestExactAlarmPermission(context)
-            return
-        }
-
-        try {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, reminderTimeMillis, pendingIntent)
-            Toast.makeText(context, "Reminder set for ${Date(reminderTimeMillis)}", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "Failed to set reminder: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    // Schedules a daily reminder
-    fun scheduleDailyReminder(
-        context: Context,
-        reminderHour: Int,
-        reminderMinute: Int,
-        medicationName: String,
-        medicationId: String,
-        dosage: String,
-        userId: String
-    ) {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, reminderHour)
-            set(Calendar.MINUTE, reminderMinute)
-            set(Calendar.SECOND, 0)
-
-            // If the time has passed, schedule for the next day
-            if (before(Calendar.getInstance())) add(Calendar.DATE, 1)
-        }
-
-        scheduleRecurringReminder(
-            context,
-            calendar.timeInMillis,
-            medicationName,
-            medicationId,
-            dosage,
-            userId,
-            AlarmManager.INTERVAL_DAY
-        )
-    }
-
-    // Schedules a weekly reminder
-    fun scheduleWeeklyReminder(
-        context: Context,
-        reminderHour: Int,
-        reminderMinute: Int,
-        dayOfWeek: Int,
-        medicationName: String,
-        medicationId: String,
-        dosage: String,
-        userId: String
-    ) {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.DAY_OF_WEEK, dayOfWeek)
-            set(Calendar.HOUR_OF_DAY, reminderHour)
-            set(Calendar.MINUTE, reminderMinute)
-            set(Calendar.SECOND, 0)
-
-            // If the time has passed, schedule for the next week
-            if (before(Calendar.getInstance())) add(Calendar.WEEK_OF_YEAR, 1)
-        }
-
-        scheduleRecurringReminder(
-            context,
-            calendar.timeInMillis,
-            medicationName,
-            medicationId,
-            dosage,
-            userId,
-            AlarmManager.INTERVAL_DAY * 7
-        )
-    }
-
-    // Internal method to schedule recurring reminders
-    private fun scheduleRecurringReminder(
-        context: Context,
-        startTimeMillis: Long,
+        reminderId: String,
         medicationName: String,
         medicationId: String,
         dosage: String,
         userId: String,
-        intervalMillis: Long
+        date: String,
+        hour: Int,
+        minute: Int
     ) {
-        val intent = createIntent(context, medicationName, medicationId, dosage, userId )
-        val pendingIntent = createPendingIntent(context, medicationId, intent)
-
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
-        try {
-            // Reschedule using exact alarms for recurring reminders
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, startTimeMillis, pendingIntent)
-        } catch (e: Exception) {
-            Toast.makeText(context, "Failed to set recurring reminder: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    // Cancels a reminder
-    fun cancelReminder(context: Context, medicationId: String) {
-        val intent = createIntent(context, "", medicationId, "", "")
-        val pendingIntent = createPendingIntent(context, medicationId, intent)
-
-        pendingIntent?.let {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            alarmManager.cancel(it)
-            Toast.makeText(context, "Reminder canceled.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // Helper to create Intent
-    private fun createIntent(context: Context, medicationName: String, medicationId: String, dosage: String, userId: String): Intent {
-        return Intent(context, ReminderBroadcastReceiver::class.java).apply {
-            putExtra("medicationName", medicationName)
-            putExtra("medicationId", medicationId)
-            putExtra("dosage", dosage)
-            putExtra("userId", userId)
-        }
-    }
-
-    // Helper to create PendingIntent
-    private fun createPendingIntent(context: Context, medicationId: String, intent: Intent): PendingIntent {
-        return PendingIntent.getBroadcast(
+        scheduleReminder(
             context,
-            medicationId.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            reminderId,
+            medicationId,
+            medicationName,
+            dosage,
+            userId,
+            frequency = "Once",
+            hour = hour,
+            minute = minute,
+            date = date
         )
     }
 
-    // Request exact alarm permission
-    private fun requestExactAlarmPermission(context: Context) {
-        Toast.makeText(context, "Permission to schedule exact alarms is required.", Toast.LENGTH_LONG).show()
-        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+    /**
+     * For "Daily" type reminders.
+     */
+    fun scheduleDailyReminder(
+        context: Context,
+        reminderId: String,
+        medicationName: String,
+        medicationId: String,
+        dosage: String,
+        userId: String,
+        hour: Int,
+        minute: Int
+    ) {
+        scheduleReminder(
+            context,
+            reminderId,
+            medicationId,
+            medicationName,
+            dosage,
+            userId,
+            frequency = "Daily",
+            hour = hour,
+            minute = minute
+        )
+    }
+
+    /**
+     * For "Weekly" type reminders.
+     */
+    fun scheduleWeeklyReminder(
+        context: Context,
+        reminderId: String,
+        medicationName: String,
+        medicationId: String,
+        dosage: String,
+        userId: String,
+        hour: Int,
+        minute: Int,
+        day: String
+    ) {
+        scheduleReminder(
+            context,
+            reminderId,
+            medicationId,
+            medicationName,
+            dosage,
+            userId,
+            frequency = "Weekly",
+            hour = hour,
+            minute = minute,
+            day = day
+        )
     }
 }

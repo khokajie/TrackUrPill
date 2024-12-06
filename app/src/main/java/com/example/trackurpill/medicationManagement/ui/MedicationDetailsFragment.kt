@@ -3,7 +3,6 @@ package com.example.trackurpill.medicationManagement.ui
 import android.app.DatePickerDialog
 import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,7 +17,6 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trackurpill.R
-import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.Reminder
 import com.example.trackurpill.databinding.FragmentMedicationDetailsBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
@@ -28,6 +26,7 @@ import com.example.trackurpill.util.ReminderScheduler
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.functions.FirebaseFunctions
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -53,8 +52,17 @@ class MedicationDetailsFragment : Fragment() {
 
         val adapter = ReminderAdapter(
             onDelete = { reminder ->
+                // Delete from local/Firestore
                 reminderVM.deleteReminder(reminder.reminderId)
-                ReminderScheduler.cancelReminder(requireContext(), reminder.reminderId)
+                // Cancel on the server
+                cancelReminder(reminder.reminderId,
+                    onSuccess = {
+                        Toast.makeText(requireContext(), "Reminder canceled successfully", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { e ->
+                        Toast.makeText(requireContext(), "Failed to cancel reminder: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                )
             },
             onEdit = { reminder ->
                 showEditReminderDialog(reminder)
@@ -74,17 +82,7 @@ class MedicationDetailsFragment : Fragment() {
         }
 
         binding.deleteMedicationButton.setOnClickListener {
-            val currentMedication = medicationVM.get(medicationId)
-            if (currentMedication != null) {
-                val updatedMedication = currentMedication.copy(
-                    medicationStatus = "Deleted" // Update status to "Deleted"
-                )
-                medicationVM.setMedication(updatedMedication) // Update the medication record
-                Toast.makeText(requireContext(), "Medication marked as deleted", Toast.LENGTH_SHORT).show()
-                nav.navigateUp() // Navigate back after the update
-            } else {
-                Toast.makeText(requireContext(), "Failed to find medication record", Toast.LENGTH_SHORT).show()
-            }
+            deleteMedication()
         }
 
         binding.editMedicationButton.setOnClickListener {
@@ -92,6 +90,19 @@ class MedicationDetailsFragment : Fragment() {
         }
 
         return binding.root
+    }
+
+    private fun cancelReminder(reminderId: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        val data = hashMapOf("reminderId" to reminderId)
+        FirebaseFunctions.getInstance()
+            .getHttpsCallable("cancelReminder")
+            .call(data)
+            .addOnSuccessListener {
+                onSuccess()
+            }
+            .addOnFailureListener { e ->
+                onError(e)
+            }
     }
 
     private fun observeMedicationDetails() {
@@ -126,21 +137,20 @@ class MedicationDetailsFragment : Fragment() {
         frequencySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
-                    0 -> {
-                        datePicker.visibility = View.VISIBLE // Show date picker for "Once"
+                    0 -> { // Once
+                        datePicker.visibility = View.VISIBLE
                         dayPicker.visibility = View.GONE
                     }
-                    1 -> {
+                    1 -> { // Daily
                         datePicker.visibility = View.GONE
                         dayPicker.visibility = View.GONE
                     }
-                    2 -> {
+                    2 -> { // Weekly
                         datePicker.visibility = View.GONE
-                        dayPicker.visibility = View.VISIBLE // Show day picker for "Weekly"
+                        dayPicker.visibility = View.VISIBLE
                     }
                 }
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
@@ -152,63 +162,227 @@ class MedicationDetailsFragment : Fragment() {
                 val minute = timePicker.minute
                 val selectedFrequency = frequencySpinner.selectedItem.toString()
 
-                val selectedDate = if (selectedFrequency == "Once") {
-                    String.format("%02d/%02d/%04d", datePicker.dayOfMonth, datePicker.month + 1, datePicker.year)
-                } else null
+                val reminderId = UUID.randomUUID().toString()
+                val medicationName = binding.medicationName.text.toString()
+                val dosageText = binding.medicationDosage.text.toString().removePrefix("Dosage: ").trim()
 
-                val selectedDay = if (selectedFrequency == "Weekly") {
-                    dayPicker.selectedItem.toString()
-                } else null
+                var date: String? = null
+                var day: String? = null
+
+                when (selectedFrequency) {
+                    "Once" -> {
+                        date = String.format("%02d/%02d/%04d", datePicker.dayOfMonth, datePicker.month + 1, datePicker.year)
+                    }
+                    "Weekly" -> {
+                        day = dayPicker.selectedItem.toString()
+                    }
+                }
 
                 val reminder = Reminder(
-                    reminderId = UUID.randomUUID().toString(),
-                    date = selectedDate,
+                    reminderId = reminderId,
+                    date = date,
                     hour = hour,
                     minute = minute,
                     frequency = selectedFrequency,
-                    day = selectedDay,
+                    day = day,
                     medicationId = medicationId
                 )
-
                 reminderVM.setReminder(reminder)
 
                 when (selectedFrequency) {
                     "Once" -> {
-                        val reminderTimeMillis = getReminderTimeMillis(selectedDate, hour, minute)
+                        val reminderTimeMillis = getReminderTimeMillis(date, hour, minute)
                         if (reminderTimeMillis != null) {
                             ReminderScheduler.scheduleReminderAt(
-                                requireContext(),
-                                reminderTimeMillis,
-                                binding.medicationName.text.toString(),
-                                medicationId,
-                                binding.medicationDosage.text.toString(),
-                                currentUserId
+                                context = requireContext(),
+                                reminderId = reminderId,
+                                medicationName = medicationName,
+                                medicationId = medicationId,
+                                dosage = dosageText,
+                                userId = currentUserId,
+                                date = date!!,
+                                hour = hour,
+                                minute = minute
                             )
                         } else {
                             Toast.makeText(requireContext(), "Invalid date or time", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    "Daily" -> ReminderScheduler.scheduleDailyReminder(
-                        requireContext(),
-                        hour,
-                        minute,
-                        binding.medicationName.text.toString(),
-                        medicationId,
-                        binding.medicationDosage.text.toString(),
-                        currentUserId
-                    )
-                    "Weekly" -> ReminderScheduler.scheduleWeeklyReminder(
-                        requireContext(),
-                        hour,
-                        minute,
-                        dayPicker.selectedItemPosition + 1,
-                        binding.medicationName.text.toString(),
-                        medicationId,
-                        binding.medicationDosage.text.toString(),
-                        currentUserId
-                    )
+                    "Daily" -> {
+                        ReminderScheduler.scheduleDailyReminder(
+                            context = requireContext(),
+                            reminderId = reminderId,
+                            medicationName = medicationName,
+                            medicationId = medicationId,
+                            dosage = dosageText,
+                            userId = currentUserId,
+                            hour = hour,
+                            minute = minute
+                        )
+                    }
+                    "Weekly" -> {
+                        ReminderScheduler.scheduleWeeklyReminder(
+                            context = requireContext(),
+                            reminderId = reminderId,
+                            medicationName = medicationName,
+                            medicationId = medicationId,
+                            dosage = dosageText,
+                            userId = currentUserId,
+                            hour = hour,
+                            minute = minute,
+                            day = day ?: "Sunday"
+                        )
+                    }
                 }
                 Toast.makeText(requireContext(), "Reminder set successfully", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+            .show()
+    }
+
+    private fun showEditReminderDialog(reminder: Reminder) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
+
+        val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
+        val frequencySpinner = dialogView.findViewById<Spinner>(R.id.frequencySpinner)
+        val dayPicker = dialogView.findViewById<Spinner>(R.id.dayPicker)
+        val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
+
+        timePicker.setIs24HourView(true)
+        dayPicker.visibility = View.GONE
+        datePicker.visibility = View.GONE
+
+        // Pre-fill data
+        timePicker.hour = reminder.hour
+        timePicker.minute = reminder.minute
+
+        // Set frequency selection
+        when (reminder.frequency) {
+            "Once" -> {
+                frequencySpinner.setSelection(0)
+                datePicker.visibility = View.VISIBLE
+                reminder.date?.split("/")?.let { parts ->
+                    if (parts.size == 3) {
+                        val d = parts[0].toInt()
+                        val m = parts[1].toInt() - 1
+                        val y = parts[2].toInt()
+                        datePicker.updateDate(y, m, d)
+                    }
+                }
+            }
+            "Daily" -> frequencySpinner.setSelection(1)
+            "Weekly" -> {
+                frequencySpinner.setSelection(2)
+                dayPicker.visibility = View.VISIBLE
+                val days = resources.getStringArray(R.array.days_of_week)
+                val dayIndex = days.indexOf(reminder.day ?: "Sunday")
+                if (dayIndex >= 0) {
+                    dayPicker.setSelection(dayIndex)
+                }
+            }
+        }
+
+        frequencySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                when (position) {
+                    0 -> {
+                        datePicker.visibility = View.VISIBLE
+                        dayPicker.visibility = View.GONE
+                    }
+                    1 -> {
+                        datePicker.visibility = View.GONE
+                        dayPicker.visibility = View.GONE
+                    }
+                    2 -> {
+                        datePicker.visibility = View.GONE
+                        dayPicker.visibility = View.VISIBLE
+                    }
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Edit Reminder")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val hour = timePicker.hour
+                val minute = timePicker.minute
+                val selectedFrequency = frequencySpinner.selectedItem.toString()
+
+                val medicationName = binding.medicationName.text.toString()
+                val dosageText = binding.medicationDosage.text.toString().removePrefix("Dosage: ").trim()
+
+                var updatedDate: String? = null
+                var updatedDay: String? = null
+
+                when (selectedFrequency) {
+                    "Once" -> {
+                        updatedDate = String.format("%02d/%02d/%04d", datePicker.dayOfMonth, datePicker.month + 1, datePicker.year)
+                    }
+                    "Weekly" -> {
+                        updatedDay = dayPicker.selectedItem.toString()
+                    }
+                }
+
+                val updatedReminder = reminder.copy(
+                    date = updatedDate,
+                    hour = hour,
+                    minute = minute,
+                    frequency = selectedFrequency,
+                    day = updatedDay
+                )
+
+                reminderVM.setReminder(updatedReminder)
+
+                when (selectedFrequency) {
+                    "Once" -> {
+                        val reminderTimeMillis = getReminderTimeMillis(updatedDate, hour, minute)
+                        if (reminderTimeMillis != null) {
+                            ReminderScheduler.scheduleReminderAt(
+                                context = requireContext(),
+                                reminderId = updatedReminder.reminderId,
+                                medicationName = medicationName,
+                                medicationId = updatedReminder.medicationId,
+                                dosage = dosageText,
+                                userId = currentUserId,
+                                date = updatedDate!!,
+                                hour = hour,
+                                minute = minute
+                            )
+                        } else {
+                            Toast.makeText(requireContext(), "Invalid date or time", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "Daily" -> {
+                        ReminderScheduler.scheduleDailyReminder(
+                            context = requireContext(),
+                            reminderId = updatedReminder.reminderId,
+                            medicationName = medicationName,
+                            medicationId = updatedReminder.medicationId,
+                            dosage = dosageText,
+                            userId = currentUserId,
+                            hour = hour,
+                            minute = minute
+                        )
+                    }
+                    "Weekly" -> {
+                        ReminderScheduler.scheduleWeeklyReminder(
+                            context = requireContext(),
+                            reminderId = updatedReminder.reminderId,
+                            medicationName = medicationName,
+                            medicationId = updatedReminder.medicationId,
+                            dosage = dosageText,
+                            userId = currentUserId,
+                            hour = hour,
+                            minute = minute,
+                            day = updatedDay ?: "Sunday"
+                        )
+                    }
+                }
+
+                Toast.makeText(requireContext(), "Reminder updated successfully", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .create()
@@ -230,7 +404,6 @@ class MedicationDetailsFragment : Fragment() {
         }
     }
 
-
     private fun showEditMedicationDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_edit_medication, null)
 
@@ -241,7 +414,6 @@ class MedicationDetailsFragment : Fragment() {
         val saveButton = dialogView.findViewById<MaterialButton>(R.id.dialogSaveButton)
         val cancelButton = dialogView.findViewById<MaterialButton>(R.id.dialogCancelButton)
 
-        // Pre-fill existing data
         val currentMedication = medicationVM.get(medicationId)
         currentMedication?.let {
             medicationName.setText(it.medicationName)
@@ -251,17 +423,7 @@ class MedicationDetailsFragment : Fragment() {
         }
 
         expirationDate.setOnClickListener {
-            val calendar = Calendar.getInstance()
-            DatePickerDialog(requireContext(), { _, year, month, dayOfMonth ->
-                val selectedDate = Calendar.getInstance().apply {
-                    set(year, month, dayOfMonth)
-                }
-                if (selectedDate.before(Calendar.getInstance())) {
-                    Toast.makeText(requireContext(), "Date cannot be in the past", Toast.LENGTH_SHORT).show()
-                } else {
-                    expirationDate.setText(SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(selectedDate.time))
-                }
-            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+            showDatePickerDialog(expirationDate)
         }
 
         val dialog = AlertDialog.Builder(requireContext())
@@ -270,26 +432,7 @@ class MedicationDetailsFragment : Fragment() {
             .create()
 
         saveButton.setOnClickListener {
-            val updatedName = medicationName.text.toString().trim()
-            val updatedDosage = dosage.text.toString().trim()
-            val updatedExpirationDate = expirationDate.text.toString().trim()
-            val updatedStockLevel = stockLevel.text.toString().trim()
-
-            if (updatedName.isEmpty() || updatedDosage.isEmpty() || updatedExpirationDate.isEmpty() || updatedStockLevel.isEmpty()) {
-                Toast.makeText(requireContext(), "All fields are required", Toast.LENGTH_SHORT).show()
-            } else if (updatedStockLevel.toIntOrNull() == null) {
-                Toast.makeText(requireContext(), "Stock level must be a number", Toast.LENGTH_SHORT).show()
-            } else {
-                val updatedMedication = currentMedication?.copy(
-                    medicationName = updatedName,
-                    dosage = updatedDosage,
-                    expirationDate = updatedExpirationDate,
-                    stockLevel = updatedStockLevel.toInt()
-                )
-                updatedMedication?.let { medicationVM.setMedication(it) }
-                Toast.makeText(requireContext(), "Medication updated", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-            }
+            updateMedication(dialog, medicationName, dosage, expirationDate, stockLevel)
         }
 
         cancelButton.setOnClickListener {
@@ -299,138 +442,71 @@ class MedicationDetailsFragment : Fragment() {
         dialog.show()
     }
 
-    private fun showEditReminderDialog(reminder: Reminder) {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
-
-        val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
-        val frequencySpinner = dialogView.findViewById<Spinner>(R.id.frequencySpinner)
-        val dayPicker = dialogView.findViewById<Spinner>(R.id.dayPicker)
-        val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
-
-        timePicker.setIs24HourView(true)
-        dayPicker.visibility = View.GONE
-        datePicker.visibility = View.GONE
-
-        // Pre-fill data
-        timePicker.hour = reminder.hour
-        timePicker.minute = reminder.minute
-
-        when (reminder.frequency) {
-            "Once" -> {
-                frequencySpinner.setSelection(0)
-                datePicker.visibility = View.VISIBLE
-                val dateParts = reminder.date?.split("/") ?: listOf()
-                if (dateParts.size == 3) {
-                    datePicker.updateDate(dateParts[2].toInt(), dateParts[1].toInt() - 1, dateParts[0].toInt())
-                }
+    private fun showDatePickerDialog(expirationDate: TextInputEditText) {
+        val calendar = Calendar.getInstance()
+        DatePickerDialog(requireContext(), { _, year, month, dayOfMonth ->
+            val selectedDate = Calendar.getInstance().apply {
+                set(year, month, dayOfMonth)
             }
-            "Daily" -> frequencySpinner.setSelection(1)
-            "Weekly" -> {
-                frequencySpinner.setSelection(2)
-                dayPicker.visibility = View.VISIBLE
-                val dayIndex = reminder.day?.let { getDayIndex(it) } ?: 0
-                dayPicker.setSelection(dayIndex)
+            if (selectedDate.before(Calendar.getInstance())) {
+                Toast.makeText(requireContext(), "Date cannot be in the past", Toast.LENGTH_SHORT).show()
+            } else {
+                expirationDate.setText(SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(selectedDate.time))
             }
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+    }
+
+    private fun updateMedication(
+        dialog: AlertDialog,
+        medicationName: TextInputEditText,
+        dosage: TextInputEditText,
+        expirationDate: TextInputEditText,
+        stockLevel: TextInputEditText
+    ) {
+        val updatedName = medicationName.text.toString().trim()
+        val updatedDosage = dosage.text.toString().trim()
+        val updatedExpirationDate = expirationDate.text.toString().trim()
+        val updatedStockLevel = stockLevel.text.toString().trim()
+
+        if (updatedName.isEmpty() || updatedDosage.isEmpty() || updatedExpirationDate.isEmpty() || updatedStockLevel.isEmpty()) {
+            Toast.makeText(requireContext(), "All fields are required", Toast.LENGTH_SHORT).show()
+        } else if (updatedStockLevel.toIntOrNull() == null) {
+            Toast.makeText(requireContext(), "Stock level must be a number", Toast.LENGTH_SHORT).show()
+        } else {
+            val updatedMedication = medicationVM.get(medicationId)?.copy(
+                medicationName = updatedName,
+                dosage = updatedDosage,
+                expirationDate = updatedExpirationDate,
+                stockLevel = updatedStockLevel.toInt()
+            )
+            updatedMedication?.let { medicationVM.setMedication(it) }
+            Toast.makeText(requireContext(), "Medication updated", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
         }
+    }
 
-        frequencySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                when (position) {
-                    0 -> {
-                        datePicker.visibility = View.VISIBLE
-                        dayPicker.visibility = View.GONE
-                    }
-                    1 -> {
-                        datePicker.visibility = View.GONE
-                        dayPicker.visibility = View.GONE
-                    }
-                    2 -> {
-                        datePicker.visibility = View.GONE
-                        dayPicker.visibility = View.VISIBLE
-                    }
-                }
-            }
 
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
 
+
+    private fun deleteMedication() {
         AlertDialog.Builder(requireContext())
-            .setTitle("Edit Reminder")
-            .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
-                val hour = timePicker.hour
-                val minute = timePicker.minute
-                val selectedFrequency = frequencySpinner.selectedItem.toString()
-
-                val selectedDate = if (selectedFrequency == "Once") {
-                    String.format("%02d/%02d/%04d", datePicker.dayOfMonth, datePicker.month + 1, datePicker.year)
-                } else null
-
-                val selectedDay = if (selectedFrequency == "Weekly") {
-                    dayPicker.selectedItem.toString()
-                } else null
-
-                // Cancel the existing reminder
-                ReminderScheduler.cancelReminder(requireContext(), reminder.reminderId)
-
-                // Create a new reminder with updated details
-                val updatedReminder = reminder.copy(
-                    date = selectedDate,
-                    hour = hour,
-                    minute = minute,
-                    frequency = selectedFrequency,
-                    day = selectedDay
-                )
-
-                reminderVM.setReminder(updatedReminder)
-
-                // Schedule the updated reminder
-                when (selectedFrequency) {
-                    "Once" -> {
-                        val reminderTimeMillis = getReminderTimeMillis(selectedDate, hour, minute)
-                        if (reminderTimeMillis != null) {
-                            ReminderScheduler.scheduleReminderAt(
-                                requireContext(),
-                                reminderTimeMillis,
-                                binding.medicationName.text.toString(),
-                                reminder.medicationId,
-                                binding.medicationDosage.text.toString(),
-                                currentUserId
-                            )
-                        } else {
-                            Toast.makeText(requireContext(), "Invalid date or time", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                    "Daily" -> ReminderScheduler.scheduleDailyReminder(
-                        requireContext(),
-                        hour,
-                        minute,
-                        binding.medicationName.text.toString(),
-                        reminder.medicationId,
-                        binding.medicationDosage.text.toString(),
-                        currentUserId
+            .setTitle("Delete Medication")
+            .setMessage("Are you sure you want to delete this medication?")
+            .setPositiveButton("Delete") { _, _ ->
+                val currentMedication = medicationVM.get(medicationId)
+                if (currentMedication != null) {
+                    val updatedMedication = currentMedication.copy(
+                        medicationStatus = "Deleted"
                     )
-                    "Weekly" -> ReminderScheduler.scheduleWeeklyReminder(
-                        requireContext(),
-                        hour,
-                        minute,
-                        dayPicker.selectedItemPosition + 1,
-                        binding.medicationName.text.toString(),
-                        reminder.medicationId,
-                        binding.medicationDosage.text.toString(),
-                        currentUserId
-                    )
+                    medicationVM.setMedication(updatedMedication)
+                    Toast.makeText(requireContext(), "Medication marked as deleted", Toast.LENGTH_SHORT).show()
+                    nav.navigateUp()
+                } else {
+                    Toast.makeText(requireContext(), "Failed to find medication record", Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(requireContext(), "Reminder updated successfully", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .create()
             .show()
     }
-
-    private fun getDayIndex(day: String): Int {
-        val days = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-        return days.indexOf(day).takeIf { it >= 0 } ?: 0
-    }
-
 }

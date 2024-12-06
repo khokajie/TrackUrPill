@@ -1,0 +1,79 @@
+[debug] [2024-12-06T14:47:03.421Z] ----------------------------------------------------------------------
+[debug] [2024-12-06T14:47:03.423Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\khoka\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js functions:shell
+[debug] [2024-12-06T14:47:03.423Z] CLI Version:   13.28.0
+[debug] [2024-12-06T14:47:03.424Z] Platform:      win32
+[debug] [2024-12-06T14:47:03.424Z] Node Version:  v18.20.5
+[debug] [2024-12-06T14:47:03.424Z] Time:          Fri Dec 06 2024 22:47:03 GMT+0800 (Malaysia Time)
+[debug] [2024-12-06T14:47:03.425Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-12-06T14:47:03.491Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-12-06T14:47:03.491Z] > authorizing via signed-in user (khokajie01@gmail.com)
+[debug] [2024-12-06T14:47:03.492Z] [iam] checking project trackurpill for permissions ["firebase.projects.get"]
+[debug] [2024-12-06T14:47:03.493Z] Checked if tokens are valid: true, expires at: 1733499709126
+[debug] [2024-12-06T14:47:03.493Z] Checked if tokens are valid: true, expires at: 1733499709126
+[debug] [2024-12-06T14:47:03.494Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/trackurpill:testIamPermissions [none]
+[debug] [2024-12-06T14:47:03.494Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/trackurpill:testIamPermissions x-goog-quota-user=projects/trackurpill
+[debug] [2024-12-06T14:47:03.495Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/trackurpill:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2024-12-06T14:47:04.613Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/trackurpill:testIamPermissions 200
+[debug] [2024-12-06T14:47:04.613Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/trackurpill:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2024-12-06T14:47:04.614Z] >>> [apiv2][query] GET http://127.0.0.1:4400/emulators [none]
+[debug] [2024-12-06T14:47:04.617Z] <<< [apiv2][status] GET http://127.0.0.1:4400/emulators 200
+[debug] [2024-12-06T14:47:04.618Z] <<< [apiv2][body] GET http://127.0.0.1:4400/emulators {"hub":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"name":"hub","host":"127.0.0.1","port":4400},"ui":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"name":"ui","host":"127.0.0.1","port":4000},"logging":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"name":"logging","host":"127.0.0.1","port":4500},"functions":{"name":"functions","host":"127.0.0.1","port":5001},"eventarc":{"name":"eventarc","host":"127.0.0.1","port":9299},"tasks":{"name":"tasks","host":"127.0.0.1","port":9499}}
+[debug] [2024-12-06T14:47:04.618Z] Running emulators:  {"hub":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"name":"hub","host":"127.0.0.1","port":4400},"ui":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"name":"ui","host":"127.0.0.1","port":4000},"logging":{"listen":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"name":"logging","host":"127.0.0.1","port":4500},"functions":{"name":"functions","host":"127.0.0.1","port":5001},"eventarc":{"name":"eventarc","host":"127.0.0.1","port":9299},"tasks":{"name":"tasks","host":"127.0.0.1","port":9499}}
+[warn] !  functions: You are already running the Cloud Functions emulator on port 5001. Running the emulator and the Functions shell simultaenously can result in unexpected behavior. 
+[debug] [2024-12-06T14:47:04.622Z] [functions] Functions Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2024-12-06T14:47:04.624Z] defaultcredentials: writing to file C:\Users\khoka\AppData\Roaming\firebase\khokajie01_gmail_com_application_default_credentials.json
+[debug] [2024-12-06T14:47:04.625Z] DEBUG: Setting GAC to C:\Users\khoka\AppData\Roaming\firebase\khokajie01_gmail_com_application_default_credentials.json
+[debug] [2024-12-06T14:47:04.626Z] Checked if tokens are valid: true, expires at: 1733499709126
+[debug] [2024-12-06T14:47:04.626Z] Checked if tokens are valid: true, expires at: 1733499709126
+[debug] [2024-12-06T14:47:04.626Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/trackurpill/adminSdkConfig [none]
+[debug] [2024-12-06T14:47:04.972Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/trackurpill/adminSdkConfig 200
+[debug] [2024-12-06T14:47:04.973Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/trackurpill/adminSdkConfig {"projectId":"trackurpill","storageBucket":"trackurpill.firebasestorage.app"}
+[debug] [2024-12-06T14:47:04.981Z] [functions] Watching "C:\Users\khoka\OneDrive\Documents\TrackUrPill\functions" for Cloud Functions...
+[debug] [2024-12-06T14:47:04.985Z] Validating nodejs source
+[warn] !  functions: package.json indicates an outdated version of firebase-functions. Please upgrade using npm install --save firebase-functions@latest in your functions directory. 
+[warn] !  functions: Please note that there will be breaking changes when you upgrade. 
+[debug] [2024-12-06T14:47:06.277Z] > [functions] package.json contents: {
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-google": "^0.14.0",
+    "firebase-functions-test": "^3.1.0",
+    "prettier": "^3.4.2"
+  },
+  "private": true
+}
+[debug] [2024-12-06T14:47:06.278Z] Building nodejs source
+[debug] [2024-12-06T14:47:06.278Z] Failed to find version of module node: reached end of search path C:\Users\khoka\OneDrive\Documents\TrackUrPill\functions\node_modules
+[info] +  functions: Using node@18 from host. 
+[debug] [2024-12-06T14:47:06.281Z] Could not find functions.yaml. Must use http discovery
+[debug] [2024-12-06T14:47:06.290Z] Found firebase-functions binary at 'C:\Users\khoka\OneDrive\Documents\TrackUrPill\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8817
+
+[debug] [2024-12-06T14:47:07.130Z] Got response from /__/functions.yaml {"endpoints":{"processScheduledReminders":{"platform":"gcfv1","availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"scheduleTrigger":{"schedule":"every 1 minutes","retryConfig":{"retryCount":null,"maxDoublings":null,"maxRetryDuration":null,"maxBackoffDuration":null,"minBackoffDuration":null},"timeZone":null},"labels":{},"entryPoint":"processScheduledReminders"},"cancelReminder":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"cancelReminder"},"scheduleReminder":{"platform":"gcfv1","labels":{},"availableMemoryMb":null,"timeoutSeconds":null,"minInstances":null,"maxInstances":null,"ingressSettings":null,"serviceAccountEmail":null,"vpc":null,"callableTrigger":{},"entryPoint":"scheduleReminder"}},"specVersion":"v1alpha1","requiredAPIs":[{"api":"cloudscheduler.googleapis.com","reason":"Needed for scheduled functions."}],"extensions":{}}
+[debug] [2024-12-06T14:47:07.159Z] [functions] Loaded functions definitions from source: processScheduledReminders, cancelReminder, scheduleReminder.
+[debug] [2024-12-06T14:47:07.160Z] [functions[us-central1-processScheduledReminders]] function ignored because the pubsub emulator does not exist or is not running.
+[debug] [2024-12-06T14:47:07.160Z] [functions[us-central1-cancelReminder]] http function initialized (http://127.0.0.1:5000/trackurpill/us-central1/cancelReminder).
+[debug] [2024-12-06T14:47:07.161Z] [functions[us-central1-scheduleReminder]] http function initialized (http://127.0.0.1:5000/trackurpill/us-central1/scheduleReminder).
+[info] i  functions: Loaded functions: processScheduledReminders, cancelReminder, scheduleReminder 
+[info] i  functions: Connected to running eventarc emulator at 127.0.0.1:9299, calls to this service will affect the emulator 
+[info] i  functions: Connected to running tasks emulator at 127.0.0.1:9499, calls to this service will affect the emulator 
+[warn] !  functions: The following emulators are not running, calls to these services will affect production: firestore, database, pubsub, storage 
