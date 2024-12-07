@@ -22,8 +22,6 @@ import java.util.TimeZone
 class ReminderViewModel(app: Application) : AndroidViewModel(app) {
     private val reminderLD = MutableLiveData<List<Reminder>>(emptyList())
     private var listener: ListenerRegistration? = null
-
-    // Filters and Sorting
     private val resultLD = MutableLiveData<List<Reminder>>()
     private var medicationId = ""
     private var field = ""
@@ -37,10 +35,19 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun setupRemindersListener() {
-        listener = REMINDER.addSnapshotListener { snapshot: QuerySnapshot?, _ ->
-            snapshot?.toObjects<Reminder>()?.let { reminders ->
-                reminderLD.value = reminders
-                updateResult()
+        listener = REMINDER.addSnapshotListener { snapshot: QuerySnapshot?, error ->
+            error?.let {
+                Log.e("ReminderViewModel", "Error getting reminders", it)
+                return@addSnapshotListener
+            }
+
+            try {
+                snapshot?.toObjects<Reminder>()?.let { reminders ->
+                    reminderLD.value = reminders
+                    updateResult()
+                }
+            } catch (e: Exception) {
+                Log.e("ReminderViewModel", "Error converting reminders", e)
             }
         }
     }
@@ -48,16 +55,27 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
     fun setReminder(reminder: Reminder) {
         viewModelScope.launch {
             try {
-                // Obtain the user's actual time zone dynamically
-                val userTimeZone = TimeZone.getDefault().id // e.g., "America/New_York"
-
-                // Create a new Reminder object with userTimeZone
+                val userTimeZone = TimeZone.getDefault().id
                 val reminderWithTimeZone = reminder.copy(userTimeZone = userTimeZone)
 
-                // Save reminder to Firestore
-                REMINDER.document(reminderWithTimeZone.reminderId).set(reminderWithTimeZone)
+                // Create map for Firestore
+                val reminderMap = mapOf(
+                    "reminderId" to reminderWithTimeZone.reminderId,
+                    "medicationId" to reminderWithTimeZone.medicationId,
+                    "date" to reminderWithTimeZone.date,  // Firestore handles Date objects natively
+                    "hour" to reminderWithTimeZone.hour,
+                    "minute" to reminderWithTimeZone.minute,
+                    "frequency" to reminderWithTimeZone.frequency,
+                    "day" to (reminderWithTimeZone.day ?: ""),
+                    "userTimeZone" to userTimeZone
+                )
 
-                // Schedule the reminder
+                // Save to Firestore
+                REMINDER.document(reminderWithTimeZone.reminderId)
+                    .set(reminderMap)
+                    .await()
+
+                // Schedule with cloud function
                 scheduleReminder(reminderWithTimeZone, userTimeZone)
             } catch (e: Exception) {
                 Log.e("ReminderViewModel", "Error setting reminder", e)
@@ -67,57 +85,49 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scheduleReminder(reminder: Reminder, userTimeZone: String) {
         try {
-            // Format date as MM/DD/YYYY to match cloud function expectations
-            val dateFormatter = SimpleDateFormat("MM/dd/yyyy", Locale.US)
-            dateFormatter.timeZone = TimeZone.getTimeZone(userTimeZone)
+            // Convert Date to string for cloud function
+            val dateFormatter = SimpleDateFormat("MM/dd/yyyy", Locale.US).apply {
+                timeZone = TimeZone.getTimeZone(userTimeZone)
+            }
 
-            // Add debug logging
-            Log.d("ReminderScheduler", "Scheduling reminder with date: ${reminder.date}")
-
-            val formattedDate = dateFormatter.format(reminder.date)
-
-            Log.d("ReminderScheduler", "Formatted date: $formattedDate")
-            Log.d("ReminderScheduler", "Hour: ${reminder.hour}, Minute: ${reminder.minute}")
-            Log.d("ReminderScheduler", "Timezone: $userTimeZone")
+            val formattedDate = reminder.date?.let { dateFormatter.format(it) }
 
             val data = mapOf(
                 "reminder" to mapOf(
                     "reminderId" to reminder.reminderId,
-                    "date" to formattedDate,         // Now in MM/dd/yyyy format
+                    "date" to formattedDate,
                     "hour" to reminder.hour,
                     "minute" to reminder.minute,
                     "frequency" to reminder.frequency,
                     "day" to (reminder.day ?: ""),
                     "medicationId" to reminder.medicationId,
                 ),
-                "userTimeZone" to userTimeZone       // Move timezone out of reminder object
+                "userTimeZone" to userTimeZone
             )
-
-            // Log the complete data being sent
-            Log.d("ReminderScheduler", "Sending data to Cloud Function: $data")
 
             val result = functions.getHttpsCallable("scheduleReminder")
                 .call(data)
                 .await()
 
-            val response = result.data as? Map<*, *> ?: emptyMap<String, Any>()
-            if (response["success"] == true) {
-                when {
-                    response["immediate"] == true ->
-                        Log.d("ReminderScheduler", "Reminder sent immediately.")
-                    response["scheduled"] == true ->
-                        Log.d("ReminderScheduler", "Reminder scheduled successfully.")
-                }
-            } else {
-                Log.e("ReminderScheduler", "Failed to schedule reminder: ${response["message"]}")
-            }
-
+            handleScheduleResponse(result.data as? Map<*, *>)
         } catch (e: Exception) {
-            Log.e("ReminderScheduler", "Failed to schedule reminder", e)
-            throw e  // Rethrow to handle in the calling function
+            Log.e("ReminderViewModel", "Failed to schedule reminder", e)
+            throw e
         }
     }
 
+    private fun handleScheduleResponse(response: Map<*, *>?) {
+        response?.let {
+            when {
+                it["success"] == true && it["immediate"] == true ->
+                    Log.d("ReminderViewModel", "Reminder sent immediately")
+                it["success"] == true && it["scheduled"] == true ->
+                    Log.d("ReminderViewModel", "Reminder scheduled successfully")
+                else ->
+                    Log.e("ReminderViewModel", "Failed to schedule: ${it["message"]}")
+            }
+        }
+    }
 
     override fun onCleared() {
         listener?.remove()

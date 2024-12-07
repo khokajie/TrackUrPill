@@ -5,7 +5,9 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.sql.Time
+import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Locale
 
 
 val USER = Firebase.firestore.collection("User")
@@ -72,15 +74,14 @@ data class Medication(
 )
 
 data class Reminder(
-    @DocumentId
-    var reminderId: String = "",
-    var date: String? = null, // Stores the date for "Once" reminders (format: MM/dd/yyyy)
-    var hour: Int = 0,       // Stores the hour of the reminder
-    var minute: Int = 0,     // Stores the minute of the reminder
-    var frequency: String = "", // e.g., Daily, Weekly, Once
-    var day: String? = null,    // Optional: Stores the day for weekly reminders
-    var medicationId: String = "", // Link to Medication
-    val userTimeZone: String = "" // New field
+    val reminderId: String = "",
+    val medicationId: String = "",
+    val date: Date? = null,      // Using Date type instead of String
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val frequency: String = "",
+    val day: String? = null,
+    val userTimeZone: String = ""
 )
 
 // Health Record Data Model
