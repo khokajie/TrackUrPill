@@ -1,163 +1,184 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const moment = require("moment-timezone");
 admin.initializeApp();
+
+// Define valid frequencies globally
+const VALID_FREQUENCIES = ["Once", "Daily", "Weekly"];
+const VALID_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 /**
  * Calculate the next reminder time
  * @param {object} reminder - The reminder object containing schedule details
- * @param {string} userTimeZone - The user's timezone
+ * @param {string} userTimeZone - The user's timezone (e.g., "Asia/Hong_Kong")
  * @return {number} Next reminder time in milliseconds (UTC)
  */
 function calculateNextReminderTime(reminder, userTimeZone) {
-  console.log("Calculating reminder time for:", {
-    date: reminder.date,
-    hour: reminder.hour,
-    minute: reminder.minute,
-    frequency: reminder.frequency,
-    timezone: userTimeZone,
-  });
+  console.log("Raw reminder data:", JSON.stringify(reminder));
+
+  if (!reminder || typeof reminder !== "object") {
+    throw new Error("Invalid reminder object");
+  }
+
+  if (!reminder.frequency) {
+    throw new Error("Frequency is required");
+  }
+
+  // Validate and clean frequency
+  const frequency = String(reminder.frequency).trim();
+  console.log("Processing frequency:", frequency);
+
+  if (!VALID_FREQUENCIES.includes(frequency)) {
+    throw new Error(
+      `Invalid frequency. Must be one of: ${VALID_FREQUENCIES.join(
+        ", ",
+      )}. Got: ${frequency}`,
+    );
+  }
 
   let nextTime;
 
-  switch (reminder.frequency) {
+  switch (frequency) {
     case "Once": {
-      if (!reminder.date || typeof reminder.date !== "string") {
-        console.error("Invalid date:", reminder.date);
+      if (!reminder.date) {
+        throw new Error("Date is required for 'Once' frequency");
+      }
+
+      const dateStr = String(reminder.date).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
         throw new Error(
-          `Invalid date format. Expected MM/DD/YYYY string, got: ${reminder.date}`,
+          `Invalid date format. Expected YYYY-MM-DD, got: ${dateStr}`,
         );
       }
 
-      const [month, day, year] = reminder.date.split("/");
-      const hour = Number(reminder.hour);
-      const minute = Number(reminder.minute);
+      const [year, month, day] = dateStr.split("-").map(Number);
+      const hour = parseInt(reminder.hour, 10);
+      const minute = parseInt(reminder.minute, 10);
 
-      // Validate components
-      if (!month || !day || !year) {
-        throw new Error(
-          `Invalid date format. Expected MM/DD/YYYY, got: ${reminder.date}`,
-        );
-      }
       if (isNaN(hour) || hour < 0 || hour > 23) {
-        throw new Error(`Invalid hour. Expected 0-23, got: ${reminder.hour}`);
+        throw new Error(`Invalid hour: ${reminder.hour}`);
       }
       if (isNaN(minute) || minute < 0 || minute > 59) {
-        throw new Error(
-          `Invalid minute. Expected 0-59, got: ${reminder.minute}`,
-        );
+        throw new Error(`Invalid minute: ${reminder.minute}`);
       }
 
-      // Create date in user's timezone
-      const userDate = new Date(
-        `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${String(
-          hour,
-        ).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`,
+      console.log("Parsed components:", {
+        date: dateStr,
+        year,
+        month,
+        day,
+        hour,
+        minute,
+      });
+
+      const reminderTime = moment.tz(
+        {
+          year: year,
+          month: month - 1, // Moment months are 0-based
+          date: day,
+          hour: hour,
+          minute: minute,
+          second: 0,
+          millisecond: 0,
+        },
+        userTimeZone,
       );
 
-      // Convert to UTC timestamp
-      const utcDate = new Date(
-        userDate.toLocaleString("en-US", { timeZone: "UTC" }),
-      );
-      nextTime = utcDate.getTime();
+      if (!reminderTime.isValid()) {
+        throw new Error("Invalid date/time combination");
+      }
 
-      // Compare with current time in user's timezone
-      const nowInUserTZ = new Date(
-        new Date().toLocaleString("en-US", { timeZone: userTimeZone }),
-      );
-
-      if (userDate.getTime() <= nowInUserTZ.getTime()) {
-        console.error("Reminder time validation failed:", {
-          reminderTime: userDate.toISOString(),
-          currentTime: nowInUserTZ.toISOString(),
-          timezone: userTimeZone,
-        });
+      const now = moment().tz(userTimeZone);
+      if (reminderTime.isBefore(now)) {
         throw new Error("Reminder time must be in the future");
       }
 
-      console.log("Time calculation debug:", {
-        inputDate: reminder.date,
-        inputTime: `${hour}:${minute}`,
-        userTimezone: userTimeZone,
-        calculatedUserTime: userDate.toLocaleString("en-US", {
-          timeZone: userTimeZone,
-        }),
-        calculatedUTC: utcDate.toISOString(),
-        currentTimeInUserTZ: nowInUserTZ.toLocaleString("en-US", {
-          timeZone: userTimeZone,
-        }),
-        timestamp: nextTime,
-      });
-
+      nextTime = reminderTime.valueOf();
       break;
     }
 
     case "Daily": {
-      const now = new Date();
-      const userNow = new Date(
-        now.toLocaleString("en-US", { timeZone: userTimeZone }),
-      );
+      const hour = parseInt(reminder.hour, 10);
+      const minute = parseInt(reminder.minute, 10);
 
-      const reminderDate = new Date(
-        userNow.getFullYear(),
-        userNow.getMonth(),
-        userNow.getDate(),
-        reminder.hour,
-        reminder.minute,
-        0,
-        0,
-      );
-
-      if (reminderDate <= userNow) {
-        reminderDate.setDate(reminderDate.getDate() + 1);
+      if (isNaN(hour) || hour < 0 || hour > 23) {
+        throw new Error(`Invalid hour: ${reminder.hour}`);
+      }
+      if (isNaN(minute) || minute < 0 || minute > 59) {
+        throw new Error(`Invalid minute: ${reminder.minute}`);
       }
 
-      // Convert to UTC for storage
-      const utcDate = new Date(
-        reminderDate.toLocaleString("en-US", { timeZone: "UTC" }),
-      );
-      nextTime = utcDate.getTime();
+      const now = moment().tz(userTimeZone);
+      const reminderTime = now.clone().set({
+        hour: hour,
+        minute: minute,
+        second: 0,
+        millisecond: 0,
+      });
+
+      if (reminderTime.isBefore(now)) {
+        reminderTime.add(1, "day");
+      }
+
+      nextTime = reminderTime.valueOf();
       break;
     }
 
     case "Weekly": {
-      const targetDay = reminder.day;
-      const now = new Date();
-      const userNow = new Date(
-        now.toLocaleString("en-US", { timeZone: userTimeZone }),
-      );
-
-      const currentDay = userNow.getDay();
-      let daysUntilTarget = targetDay - currentDay;
-
-      if (daysUntilTarget <= 0) {
-        daysUntilTarget += 7;
+      if (!reminder.day || !VALID_DAYS.includes(reminder.day)) {
+        throw new Error(
+          `Invalid day. Must be one of: ${VALID_DAYS.join(", ")}`,
+        );
       }
 
-      const reminderDate = new Date(
-        userNow.getFullYear(),
-        userNow.getMonth(),
-        userNow.getDate() + daysUntilTarget,
-        reminder.hour,
-        reminder.minute,
-        0,
-        0,
-      );
+      const hour = parseInt(reminder.hour, 10);
+      const minute = parseInt(reminder.minute, 10);
 
-      // Convert to UTC for storage
-      const utcDate = new Date(
-        reminderDate.toLocaleString("en-US", { timeZone: "UTC" }),
-      );
-      nextTime = utcDate.getTime();
+      if (isNaN(hour) || hour < 0 || hour > 23) {
+        throw new Error(`Invalid hour: ${reminder.hour}`);
+      }
+      if (isNaN(minute) || minute < 0 || minute > 59) {
+        throw new Error(`Invalid minute: ${reminder.minute}`);
+      }
+
+      const now = moment().tz(userTimeZone);
+      const dayIndex = VALID_DAYS.indexOf(reminder.day);
+      const reminderTime = now.clone().day(dayIndex).set({
+        hour: hour,
+        minute: minute,
+        second: 0,
+        millisecond: 0,
+      });
+
+      if (reminderTime.isBefore(now)) {
+        reminderTime.add(1, "week");
+      }
+
+      nextTime = reminderTime.valueOf();
       break;
     }
 
     default:
-      throw new Error(`Invalid frequency: ${reminder.frequency}`);
+      throw new Error(`Invalid frequency: ${frequency}`);
   }
 
-  if (!nextTime || isNaN(nextTime)) {
-    throw new Error("Failed to calculate valid reminder time");
+  if (!nextTime) {
+    throw new Error("Failed to calculate reminder time");
   }
+
+  console.log("Calculated time:", {
+    timestamp: nextTime,
+    local: moment(nextTime).tz(userTimeZone).format(),
+    utc: moment(nextTime).utc().format(),
+  });
 
   return nextTime;
 }
@@ -169,31 +190,68 @@ function calculateNextReminderTime(reminder, userTimeZone) {
  * @returns {Promise<object>} Operation result
  */
 exports.scheduleReminder = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "User must be authenticated",
-    );
-  }
-
-  const { reminder, userTimeZone } = data;
-
-  if (
-    !reminder ||
-    !reminder.reminderId ||
-    !reminder.medicationId ||
-    !reminder.frequency ||
-    (reminder.frequency === "Weekly" && !reminder.day)
-  ) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Reminder data is incomplete or invalid",
-    );
-  }
-
   try {
-    const nextReminderTime = calculateNextReminderTime(reminder, userTimeZone);
+    console.log("Raw request data:", JSON.stringify(data));
 
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated",
+      );
+    }
+
+    if (!data || typeof data !== "object") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Invalid request data",
+      );
+    }
+
+    const { reminder, userTimeZone } = data;
+
+    if (!reminder || typeof reminder !== "object") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Invalid reminder data",
+      );
+    }
+
+    // Validate required fields
+    const requiredFields = [
+      "reminderId",
+      "medicationId",
+      "frequency",
+      "hour",
+      "minute",
+    ];
+    for (const field of requiredFields) {
+      if (!reminder[field]) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `Missing required field: ${field}`,
+        );
+      }
+    }
+
+    if (!userTimeZone || typeof userTimeZone !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid timezone is required",
+      );
+    }
+
+    let nextReminderTime;
+    try {
+      nextReminderTime = calculateNextReminderTime(reminder, userTimeZone);
+    } catch (error) {
+      console.error("Time calculation error:", error);
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        `Failed to calculate reminder time: ${error.message}`,
+      );
+    }
+
+    // Retrieve Medication document
     const medicationDoc = await admin
       .firestore()
       .collection("Medication")
@@ -201,12 +259,13 @@ exports.scheduleReminder = functions.https.onCall(async (data, context) => {
       .get();
 
     if (!medicationDoc.exists) {
-      throw new Error("Medication not found");
+      throw new functions.https.HttpsError("not-found", "Medication not found");
     }
 
     const medication = medicationDoc.data();
     const userId = medication.userId;
 
+    // Get user document and FCM token
     let userDoc = await admin
       .firestore()
       .collection("Patient")
@@ -222,58 +281,80 @@ exports.scheduleReminder = functions.https.onCall(async (data, context) => {
     }
 
     if (!userDoc.exists) {
-      throw new Error("User not found");
+      throw new functions.https.HttpsError("not-found", "User not found");
     }
 
     const fcmToken = userDoc.data().fcmToken;
     if (!fcmToken) {
-      throw new Error("FCM token not found");
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "FCM token not found",
+      );
     }
 
-    const message = {
-      data: {
-        reminderId: reminder.reminderId,
-        medicationId: reminder.medicationId,
-        medicationName: medication.medicationName,
-        dosage: medication.dosage,
-        userId: userId,
-      },
-      token: fcmToken,
-    };
+    const batch = admin.firestore().batch();
 
-    const notificationId = admin
+    const reminderRef = admin
       .firestore()
-      .collection("Notification")
-      .doc().id;
-    const notification = {
-      notificationId: notificationId,
-      message: `Time to take ${medication.medicationName} (${medication.dosage})`,
-      receiveTime: admin.firestore.Timestamp.fromMillis(nextReminderTime),
-      type: "reminder",
-      status: "scheduled",
+      .collection("Reminder")
+      .doc(reminder.reminderId);
+
+    const reminderData = {
       userId: userId,
+      medicationId: reminder.medicationId,
+      medicationName: medication.medicationName,
+      dosage: medication.dosage,
+      frequency: String(reminder.frequency).trim(),
+      hour: parseInt(reminder.hour, 10),
+      minute: parseInt(reminder.minute, 10),
+      day: reminder.day || null,
+      date: reminder.date || null,
+      userTimeZone: userTimeZone,
+      nextScheduledTime: nextReminderTime,
+      status: "active",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    await admin
-      .firestore()
-      .collection("scheduledReminders")
-      .doc(reminder.reminderId)
-      .set({
-        reminder: {
-          ...reminder,
-          userTimeZone,
-        },
-        nextScheduledTime: nextReminderTime,
-        message: message,
-        notification: notification,
-        status: "scheduled",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    batch.set(reminderRef, reminderData);
 
-    return { success: true, scheduled: true };
+    const scheduledTaskRef = admin
+      .firestore()
+      .collection("ScheduledTasks")
+      .doc(reminder.reminderId);
+
+    batch.set(scheduledTaskRef, {
+      type: "reminder",
+      reminderId: reminder.reminderId,
+      userId: userId,
+      nextScheduledTime: nextReminderTime,
+      fcmToken: fcmToken,
+      status: "scheduled",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    console.log("Reminder scheduled successfully:", {
+      reminderId: reminder.reminderId,
+      nextTime: moment(nextReminderTime).format(),
+    });
+
+    return {
+      success: true,
+      scheduled: true,
+      nextReminderTime: nextReminderTime,
+    };
   } catch (error) {
     console.error("Error in scheduleReminder:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      "internal",
+      error.message || "An unknown error occurred",
+    );
   }
 });
 
@@ -289,58 +370,115 @@ exports.processScheduledReminders = functions.pubsub
     try {
       const querySnapshot = await admin
         .firestore()
-        .collection("scheduledReminders")
+        .collection("ScheduledTasks")
+        .where("type", "==", "reminder")
         .where("status", "==", "scheduled")
         .where("nextScheduledTime", "<=", now)
         .get();
 
-      if (querySnapshot.empty) return null;
+      if (querySnapshot.empty) {
+        return null;
+      }
 
       const promises = querySnapshot.docs.map(async (doc) => {
-        const reminderData = doc.data();
-        const { reminder, message, notification } = reminderData;
-
-        // Additional check to prevent early processing
-        if (reminderData.nextScheduledTime > now) return;
+        const scheduledTask = doc.data();
+        const { reminderId, fcmToken, userId } = scheduledTask;
 
         try {
-          // Send the notification
-          await admin.messaging().send(message);
+          const reminderDoc = await admin
+            .firestore()
+            .collection("Reminder")
+            .doc(reminderId)
+            .get();
+
+          if (!reminderDoc.exists || reminderDoc.data().status !== "active") {
+            await doc.ref.update({
+              status: "canceled",
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            return;
+          }
+
+          const reminder = reminderDoc.data();
+
+          // Send notification
+          await admin.messaging().send({
+            notification: {
+              title: "Medication Reminder",
+              body: `Time to take ${reminder.medicationName} (${reminder.dosage})`,
+            },
+            data: {
+              reminderId: reminder.reminderId,
+              medicationId: reminder.medicationId,
+              medicationName: reminder.medicationName,
+              dosage: reminder.dosage,
+              userId: reminder.userId,
+            },
+            android: {
+              priority: "high",
+              notification: {
+                channelId: "medication_reminders",
+                priority: "high",
+              },
+            },
+            token: fcmToken,
+          });
 
           // Create notification record
-          const newNotificationId = admin
+          const notificationRef = admin
             .firestore()
-            .collection("Notification")
-            .doc().id;
-          await admin
-            .firestore()
-            .collection("Notification")
-            .doc(newNotificationId)
-            .set({
-              ...notification,
-              notificationId: newNotificationId,
-              receiveTime: admin.firestore.Timestamp.fromMillis(now),
-              status: "sent",
-            });
+            .collection("Notifications")
+            .doc();
 
-          // Update reminder status
-          if (reminder.frequency === "Once") {
-            await doc.ref.update({ status: "sent" });
+          await notificationRef.set({
+            notificationId: notificationRef.id,
+            type: "reminder",
+            reminderId: reminderId,
+            userId: userId,
+            message: `Time to take ${reminder.medicationName} (${reminder.dosage})`,
+            timestamp: admin.firestore.Timestamp.fromMillis(now),
+            status: "sent",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          const frequency = String(reminder.frequency).trim();
+
+          if (frequency === "Once") {
+            await Promise.all([
+              reminderDoc.ref.update({
+                status: "completed",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }),
+              doc.ref.update({
+                status: "completed",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }),
+            ]);
           } else {
             const nextTime = calculateNextReminderTime(
               reminder,
               reminder.userTimeZone,
             );
-            await doc.ref.update({
-              nextScheduledTime: nextTime,
-              status: "scheduled",
-            });
+
+            await Promise.all([
+              reminderDoc.ref.update({
+                nextScheduledTime: nextTime,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }),
+              doc.ref.update({
+                nextScheduledTime: nextTime,
+                status: "scheduled",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              }),
+            ]);
           }
         } catch (error) {
-          console.error(
-            `Error processing reminder ${reminder.reminderId}:`,
-            error,
-          );
+          console.error(`Error processing reminder ${reminderId}:`, error);
+          await doc.ref.update({
+            status: "error",
+            error: error.message,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
         }
       });
 
@@ -359,36 +497,75 @@ exports.processScheduledReminders = functions.pubsub
  * @returns {Promise<object>} Operation result
  */
 exports.cancelReminder = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "User must be authenticated",
-    );
-  }
-
-  const { reminderId } = data;
-  if (!reminderId) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "reminderId is required",
-    );
-  }
-
   try {
+    // Authentication check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated",
+      );
+    }
+
+    // Validate input
+    const { reminderId } = data;
+    if (!reminderId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "reminderId is required",
+      );
+    }
+
+    // Verify reminder exists
     const reminderDoc = await admin
       .firestore()
-      .collection("scheduledReminders")
+      .collection("Reminder")
       .doc(reminderId)
       .get();
 
     if (!reminderDoc.exists) {
-      return { success: false, message: "No reminder found with that ID" };
+      throw new functions.https.HttpsError("not-found", "Reminder not found");
     }
 
-    await reminderDoc.ref.update({ status: "canceled" });
-    return { success: true };
+    // Batch update both documents
+    const batch = admin.firestore().batch();
+
+    // Update Reminder document
+    const reminderRef = admin
+      .firestore()
+      .collection("Reminder")
+      .doc(reminderId);
+
+    batch.update(reminderRef, {
+      status: "canceled",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Update ScheduledTask document
+    const scheduledTaskRef = admin
+      .firestore()
+      .collection("ScheduledTasks")
+      .doc(reminderId);
+
+    batch.update(scheduledTaskRef, {
+      status: "canceled",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+    console.log(`Reminder ${reminderId} has been canceled successfully.`);
+
+    return {
+      success: true,
+      message: "Reminder canceled successfully",
+    };
   } catch (error) {
     console.error("Error canceling reminder:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      "internal",
+      error.message || "Failed to cancel reminder",
+    );
   }
 });

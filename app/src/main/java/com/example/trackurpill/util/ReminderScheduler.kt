@@ -6,27 +6,12 @@ import android.widget.Toast
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
-import java.util.UUID
+import java.util.TimeZone
 
 object ReminderScheduler {
     private val functions: FirebaseFunctions = Firebase.functions
     private const val TAG = "ReminderScheduler"
 
-    /**
-     * A generic function to schedule a reminder with all necessary fields.
-     *
-     * @param context The application context
-     * @param reminderId Unique ID of the reminder
-     * @param medicationId The ID of the medication
-     * @param medicationName The name of the medication (optional for display)
-     * @param dosage The dosage of the medication (optional for display)
-     * @param userId The ID of the user
-     * @param frequency The frequency of the reminder ("Once", "Daily", or "Weekly")
-     * @param hour The hour of the reminder (0-23)
-     * @param minute The minute of the reminder (0-59)
-     * @param date The date of the reminder (required if frequency is "Once")
-     * @param day The day of the week for the reminder (required if frequency is "Weekly")
-     */
     fun scheduleReminder(
         context: Context,
         reminderId: String,
@@ -40,6 +25,9 @@ object ReminderScheduler {
         date: String? = null,
         day: String? = null
     ) {
+        // Get the user's timezone
+        val userTimeZone = TimeZone.getDefault().id
+
         val reminderData = hashMapOf(
             "reminderId" to reminderId,
             "medicationId" to medicationId,
@@ -48,6 +36,7 @@ object ReminderScheduler {
             "minute" to minute
         )
 
+        // Add optional fields if present
         if (date != null) {
             reminderData["date"] = date
         }
@@ -56,7 +45,14 @@ object ReminderScheduler {
             reminderData["day"] = day
         }
 
-        val data = hashMapOf("reminder" to reminderData)
+        // Create the complete data map including userTimeZone
+        val data = hashMapOf(
+            "reminder" to reminderData,
+            "userTimeZone" to userTimeZone
+        )
+
+        // Log the data being sent
+        Log.d(TAG, "Scheduling reminder with data: $data")
 
         functions.getHttpsCallable("scheduleReminder")
             .call(data)
@@ -66,13 +62,14 @@ object ReminderScheduler {
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Failed to schedule reminder", e)
-                Toast.makeText(context, "Failed to schedule: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Failed to schedule reminder: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
             }
     }
 
-    /**
-     * For "Once" type reminders.
-     */
     fun scheduleReminderAt(
         context: Context,
         reminderId: String,
@@ -98,9 +95,6 @@ object ReminderScheduler {
         )
     }
 
-    /**
-     * For "Daily" type reminders.
-     */
     fun scheduleDailyReminder(
         context: Context,
         reminderId: String,
@@ -124,9 +118,6 @@ object ReminderScheduler {
         )
     }
 
-    /**
-     * For "Weekly" type reminders.
-     */
     fun scheduleWeeklyReminder(
         context: Context,
         reminderId: String,

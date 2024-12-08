@@ -74,14 +74,14 @@ data class Medication(
 )
 
 data class Reminder(
+    @DocumentId
     val reminderId: String = "",
-    val medicationId: String = "",
-    val date: Date? = null,      // Using Date type instead of String
+    val date: String? = "",        // Required for "Once" frequency
     val hour: Int = 0,
     val minute: Int = 0,
-    val frequency: String = "",
-    val day: String? = null,
-    val userTimeZone: String = ""
+    val frequency: String = "",  // "Once", "Daily", "Weekly"
+    val day: String? = "",       // Required for "Weekly" frequency
+    val medicationId: String = ""
 )
 
 // Health Record Data Model

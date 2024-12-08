@@ -17,7 +17,7 @@ class FCMService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
-        Log.d("Message Received", "Message received, sen Notification")
+        Log.d("Message Received", "Message received, send Notification")
 
         val reminderId = message.data["reminderId"]
         val medicationId = message.data["medicationId"]

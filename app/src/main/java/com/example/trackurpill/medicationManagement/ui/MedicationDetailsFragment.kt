@@ -3,6 +3,7 @@ package com.example.trackurpill.medicationManagement.ui
 import android.app.DatePickerDialog
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +28,9 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.HttpsCallableResult
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,15 +42,6 @@ class MedicationDetailsFragment : Fragment() {
     private val reminderVM: ReminderViewModel by activityViewModels()
     private lateinit var medicationId: String
     private lateinit var currentUserId: String
-
-    private fun parseDate(dateStr: String?): Date? {
-        if (dateStr == null) return null
-        return try {
-            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateStr)
-        } catch (e: Exception) {
-            null
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -122,44 +117,6 @@ class MedicationDetailsFragment : Fragment() {
             .addOnFailureListener { onError(it) }
     }
 
-    private fun showSetTimerDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
-        val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
-        val frequencySpinner = dialogView.findViewById<Spinner>(R.id.frequencySpinner)
-        val dayPicker = dialogView.findViewById<Spinner>(R.id.dayPicker)
-        val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
-
-        setupTimerDialogViews(timePicker, frequencySpinner, dayPicker, datePicker)
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Set Reminder")
-            .setView(dialogView)
-            .setPositiveButton("Set") { _, _ ->
-                val hour = timePicker.hour
-                val minute = timePicker.minute
-                val selectedFrequency = frequencySpinner.selectedItem.toString()
-                val reminderId = UUID.randomUUID().toString()
-
-                val reminder = Reminder(
-                    reminderId = reminderId,
-                    date = when (selectedFrequency) {
-                        "Once" -> createDateFromPicker(datePicker)
-                        else -> null
-                    },
-                    hour = hour,
-                    minute = minute,
-                    frequency = selectedFrequency,
-                    day = if (selectedFrequency == "Weekly") dayPicker.selectedItem.toString() else null,
-                    medicationId = medicationId
-                )
-
-                reminderVM.setReminder(reminder)
-                scheduleReminderNotification(reminder, selectedFrequency)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
     private fun showEditReminderDialog(reminder: Reminder) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
         val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
@@ -178,18 +135,36 @@ class MedicationDetailsFragment : Fragment() {
                 val minute = timePicker.minute
                 val selectedFrequency = frequencySpinner.selectedItem.toString()
 
+                // Ensure 'day' is passed for "Weekly" frequency
+                val selectedDay = if (selectedFrequency == "Weekly") dayPicker.selectedItem.toString() else null
+
+                // Ensure 'date' is passed for "Once" frequency
+                val selectedDate = if (selectedFrequency == "Once") {
+                    parseDate(String.format("%02d/%02d/%04d",
+                        datePicker.dayOfMonth,
+                        datePicker.month + 1,
+                        datePicker.year))
+                } else null
+
+                // Validate required fields based on frequency
+                if (selectedFrequency == "Once" && selectedDate == null) {
+                    Toast.makeText(requireContext(), "Invalid date selected", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                if (selectedFrequency == "Weekly" && selectedDay == null) {
+                    Toast.makeText(requireContext(), "Invalid day selected", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
                 val updatedReminder = reminder.copy(
-                    date = when (selectedFrequency) {
-                        "Once" -> parseDate(String.format("%02d/%02d/%04d",
-                            datePicker.dayOfMonth,
-                            datePicker.month + 1,
-                            datePicker.year))
-                        else -> null
-                    },
+                    date = if (selectedDate != null) {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(selectedDate)
+                    } else null,
                     hour = hour,
                     minute = minute,
                     frequency = selectedFrequency,
-                    day = if (selectedFrequency == "Weekly") dayPicker.selectedItem.toString() else null
+                    day = selectedDay
                 )
 
                 reminderVM.setReminder(updatedReminder)
@@ -205,8 +180,8 @@ class MedicationDetailsFragment : Fragment() {
 
         when (frequency) {
             "Once" -> {
-                reminder.date?.let { date ->
-                    val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                reminder.date?.let { dateStr ->
+                    // dateStr is already in yyyy-MM-dd format, no need to format it again
                     ReminderScheduler.scheduleReminderAt(
                         context = requireContext(),
                         reminderId = reminder.reminderId,
@@ -214,7 +189,7 @@ class MedicationDetailsFragment : Fragment() {
                         medicationId = reminder.medicationId,
                         dosage = dosageText,
                         userId = currentUserId,
-                        date = dateFormatter.format(date),
+                        date = dateStr, // Use the string directly
                         hour = reminder.hour,
                         minute = reminder.minute
                     )
@@ -301,15 +276,25 @@ class MedicationDetailsFragment : Fragment() {
             "Once" -> {
                 frequencySpinner.setSelection(0)
                 datePicker.visibility = View.VISIBLE
-                reminder.date?.let { date ->
-                    val calendar = Calendar.getInstance().apply {
-                        time = date
+                reminder.date?.let { dateStr ->
+                    try {
+                        // Parse the date string to Date object
+                        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        val date = dateFormat.parse(dateStr)
+
+                        // Set the date in DatePicker
+                        val calendar = Calendar.getInstance().apply {
+                            time = date
+                        }
+                        datePicker.updateDate(
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH),
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        )
+                    } catch (e: Exception) {
+                        // Handle parsing error if needed
+                        Log.e("prefillReminderData", "Error parsing date: $dateStr", e)
                     }
-                    datePicker.updateDate(
-                        calendar.get(Calendar.YEAR),
-                        calendar.get(Calendar.MONTH),
-                        calendar.get(Calendar.DAY_OF_MONTH)
-                    )
                 }
             }
             "Daily" -> frequencySpinner.setSelection(1)
@@ -365,6 +350,15 @@ class MedicationDetailsFragment : Fragment() {
         dialog.show()
     }
 
+    private fun parseDate(dateStr: String?): Date? {
+        if (dateStr == null) return null
+        return try {
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateStr)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun showDatePickerDialog(expirationDate: TextInputEditText) {
         val calendar = Calendar.getInstance()
         DatePickerDialog(
@@ -376,7 +370,7 @@ class MedicationDetailsFragment : Fragment() {
                 if (selectedDate.before(Calendar.getInstance())) {
                     Toast.makeText(requireContext(), "Date cannot be in the past", Toast.LENGTH_SHORT).show()
                 } else {
-                    expirationDate.setText(SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).format(selectedDate.time))
+                    expirationDate.setText(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(selectedDate.time))
                 }
             },
             calendar.get(Calendar.YEAR),
@@ -453,16 +447,102 @@ class MedicationDetailsFragment : Fragment() {
             .show()
     }
 
-    private fun createDateFromPicker(datePicker: DatePicker): Date {
-        return Calendar.getInstance().apply {
-            set(Calendar.YEAR, datePicker.year)
-            set(Calendar.MONTH, datePicker.month)
-            set(Calendar.DAY_OF_MONTH, datePicker.dayOfMonth)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
+    private fun showSetTimerDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_set_timer, null)
+        val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
+        val frequencySpinner = dialogView.findViewById<Spinner>(R.id.frequencySpinner)
+        val dayPicker = dialogView.findViewById<Spinner>(R.id.dayPicker)
+        val datePicker = dialogView.findViewById<DatePicker>(R.id.datePicker)
+
+        setupTimerDialogViews(timePicker, frequencySpinner, dayPicker, datePicker)
+
+        // Set minimum date for date picker to today
+        datePicker.minDate = System.currentTimeMillis() - 1000
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Set Reminder")
+            .setView(dialogView)
+            .setPositiveButton("Set", null) // Set to null initially to prevent automatic dismissal
+            .setNegativeButton("Cancel", null)
+            .create()
+            .apply {
+                setOnShowListener { dialog ->
+                    val positiveButton = (dialog as AlertDialog).getButton(AlertDialog.BUTTON_POSITIVE)
+                    positiveButton.setOnClickListener {
+                        val hour = timePicker.hour
+                        val minute = timePicker.minute
+                        val selectedFrequency = frequencySpinner.selectedItem.toString()
+                        val reminderId = UUID.randomUUID().toString()
+
+                        // Retrieve selected day for "Weekly" frequency
+                        val selectedDay = if (selectedFrequency == "Weekly") dayPicker.selectedItem.toString() else null
+
+                        // Retrieve selected date for "Once" frequency
+                        val selectedDate = if (selectedFrequency == "Once") {
+                            createDateFromPicker(datePicker)
+                        } else null
+
+                        // Validate required fields based on frequency
+                        if (selectedFrequency == "Once" && selectedDate == null) {
+                            Toast.makeText(requireContext(), "Invalid date selected", Toast.LENGTH_SHORT).show()
+                            return@setOnClickListener
+                        }
+
+                        if (selectedFrequency == "Weekly" && selectedDay == null) {
+                            Toast.makeText(requireContext(), "Invalid day selected", Toast.LENGTH_SHORT).show()
+                            return@setOnClickListener
+                        }
+
+                        // Create Reminder object with all required fields
+                        val reminder = Reminder(
+                            reminderId = reminderId,
+                            date = if (selectedDate != null) {
+                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(selectedDate)
+                            } else null,
+                            hour = hour,
+                            minute = minute,
+                            frequency = selectedFrequency,
+                            day = selectedDay,
+                            medicationId = medicationId
+                        )
+
+                        reminderVM.setReminder(reminder)
+                        scheduleReminderNotification(reminder, selectedFrequency)
+                        dialog.dismiss()
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun validateReminderTime(date: Date?, hour: Int, minute: Int): Boolean {
+        if (date == null) return false
+        val reminderCalendar = Calendar.getInstance().apply {
+            time = date
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-        }.time
+        }
+
+        val currentCalendar = Calendar.getInstance()
+        return reminderCalendar.after(currentCalendar)
+    }
+
+    private fun createDateFromPicker(datePicker: DatePicker): Date? {
+        return try {
+            Calendar.getInstance().apply {
+                set(Calendar.YEAR, datePicker.year)
+                set(Calendar.MONTH, datePicker.month)
+                set(Calendar.DAY_OF_MONTH, datePicker.dayOfMonth)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+        } catch (e: Exception) {
+            null
+        }
     }
 
     companion object {
