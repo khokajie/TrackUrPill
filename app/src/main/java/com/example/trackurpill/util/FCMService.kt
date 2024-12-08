@@ -1,10 +1,14 @@
 package com.example.trackurpill.util
 
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.media.RingtoneManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.example.trackurpill.MainActivity
 import com.example.trackurpill.R
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
@@ -15,62 +19,44 @@ import com.google.firebase.messaging.RemoteMessage
 class FCMService : FirebaseMessagingService() {
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 
-    override fun onMessageReceived(message: RemoteMessage) {
-        super.onMessageReceived(message)
-        Log.d("Message Received", "Message received, send Notification")
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        Log.d("FCM", "From: ${remoteMessage.from}")
 
-        val reminderId = message.data["reminderId"]
-        val medicationId = message.data["medicationId"]
-        val medicationName = message.data["medicationName"]
-        val dosage = message.data["dosage"]
-
-        createReminderNotification(reminderId, medicationId, medicationName, dosage)
-    }
-
-    override fun onNewToken(token: String) {
-        super.onNewToken(token)
-        updateFCMToken(token)
-    }
-
-    /**
-     * Creates a reminder notification using the provided data.
-     *
-     * @param reminderId The ID of the reminder.
-     * @param medicationId The ID of the medication.
-     * @param medicationName The name of the medication.
-     * @param dosage The dosage of the medication.
-     */
-    private fun createReminderNotification(
-        reminderId: String?,
-        medicationId: String?,
-        medicationName: String?,
-        dosage: String?
-    ) {
-        val intent = Intent(this, ReminderActionReceiver::class.java).apply {
-            action = "ACTION_TAKEN"
-            putExtra("medicationId", medicationId)
-            putExtra("reminderId", reminderId)
-            putExtra("medicationName", medicationName)
-            putExtra("dosage", dosage)
+        // Check if message contains a notification payload.
+        remoteMessage.notification?.let {
+            Log.d("FCM", "Message Notification Title: ${it.title}")
+            Log.d("FCM", "Message Notification Body: ${it.body}")
+            sendNotification(it.title, it.body)
         }
 
-        val pendingIntent = PendingIntent.getBroadcast(
-            this,
-            reminderId?.hashCode() ?: 0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        // Check if message contains a data payload.
+        remoteMessage.data.isNotEmpty().let {
+            Log.d("FCM", "Message data payload: ${remoteMessage.data}")
+            // Handle data payload if needed
+        }
+    }
+
+    private fun sendNotification(title: String?, messageBody: String?) {
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, "REMINDER_CHANNEL")
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Medication Reminders")
-            .setContentText("Time to take $medicationName ($dosage)")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+        val channelId = "medication_reminders"
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_notification) // Ensure you have this icon
+            .setContentTitle(title)
+            .setContentText(messageBody)
             .setAutoCancel(true)
+            .setSound(defaultSoundUri)
             .setContentIntent(pendingIntent)
-            .build()
 
-        NotificationManagerCompat.from(this).notify(reminderId?.hashCode() ?: 0, notification)
+        with(NotificationManagerCompat.from(this)) {
+            notify(0, notificationBuilder.build())
+        }
     }
 
     /**

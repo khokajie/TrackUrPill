@@ -43,7 +43,7 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
     fun setReminder(reminder: Reminder) {
         viewModelScope.launch {
             try {
-                val userTimeZone = TimeZone.getDefault().id
+                val userTimeZone = "Asia/Hong_Kong"
                 Log.d("ReminderViewModel", "Setting reminder with timezone: $userTimeZone")
                 scheduleReminder(reminder, userTimeZone)
             } catch (e: Exception) {
