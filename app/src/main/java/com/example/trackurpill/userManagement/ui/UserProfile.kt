@@ -1,7 +1,9 @@
+// File: UserProfile.kt
 package com.example.trackurpill.userManagement.ui
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -16,16 +18,17 @@ import com.example.trackurpill.R
 import com.example.trackurpill.data.AuthViewModel
 import com.example.trackurpill.databinding.FragmentUserProfileBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
+import com.example.trackurpill.userManagement.data.TokenViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
-
 class UserProfile : Fragment() {
     private lateinit var binding: FragmentUserProfileBinding
     private val authViewModel: AuthViewModel by activityViewModels()
     private val userViewModel: LoggedInUserViewModel by activityViewModels()
+    private val tokenViewModel: TokenViewModel by activityViewModels()
     private val nav by lazy { findNavController() }
 
     override fun onCreateView(
@@ -58,11 +61,15 @@ class UserProfile : Fragment() {
                             } else {
                                 binding.imgProfilePicture.setImageResource(R.drawable.ic_profile) // Replace with your placeholder image
                             }
+
+                            // Update FCM token upon loading user details
+                            tokenViewModel.updateFCMToken(loggedInUser.userId, loggedInUser.userType)
                         } else {
                             Toast.makeText(context, "Failed to load user details", Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
                         Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Log.e("UserProfile", "Error fetching user details", e)
                     }
                 }
             }
@@ -113,44 +120,68 @@ class UserProfile : Fragment() {
                 // Handle password update logic with Firebase
                 val user = FirebaseAuth.getInstance().currentUser
                 if (user != null) {
-                    val credential = FirebaseAuth.getInstance().signInWithEmailAndPassword(
-                        user.email!!,
-                        currentPassword
-                    )
-
-                    credential.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            user.updatePassword(newPassword)
-                                .addOnCompleteListener { updateTask ->
-                                    if (updateTask.isSuccessful) {
-                                        Toast.makeText(context, "Password updated successfully", Toast.LENGTH_SHORT).show()
-                                        dialog.dismiss()
-                                    } else {
-                                        Toast.makeText(context, "Failed to update password: ${updateTask.exception?.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                        } else {
-                            currentPasswordInput.error = "Incorrect current password"
-                        }
+                    val credential = FirebaseAuth.getInstance().currentUser?.email?.let {
+                        com.google.firebase.auth.EmailAuthProvider.getCredential(it, currentPassword)
                     }
+
+                    if (credential != null) {
+                        user.reauthenticate(credential)
+                            .addOnCompleteListener { authTask ->
+                                if (authTask.isSuccessful) {
+                                    user.updatePassword(newPassword)
+                                        .addOnCompleteListener { updateTask ->
+                                            if (updateTask.isSuccessful) {
+                                                Toast.makeText(context, "Password updated successfully", Toast.LENGTH_SHORT).show()
+                                                dialog.dismiss()
+                                            } else {
+                                                Toast.makeText(context, "Failed to update password: ${updateTask.exception?.message}", Toast.LENGTH_SHORT).show()
+                                                Log.e("UserProfile", "Failed to update password", updateTask.exception)
+                                            }
+                                        }
+                                } else {
+                                    currentPasswordInput.error = "Incorrect current password"
+                                    Log.e("UserProfile", "Reauthentication failed", authTask.exception)
+                                }
+                            }
+                    } else {
+                        Toast.makeText(context, "Error: Unable to reauthenticate.", Toast.LENGTH_SHORT).show()
+                        Log.e("UserProfile", "Credential creation failed")
+                    }
+                } else {
+                    Toast.makeText(context, "No authenticated user found.", Toast.LENGTH_SHORT).show()
+                    Log.w("UserProfile", "Logout attempted without a logged-in user.")
                 }
             }
 
             dialog.show()
         }
 
-
         binding.btnLogout.setOnClickListener {
-            authViewModel.logout()
-            userViewModel.clearData()
+            val user = FirebaseAuth.getInstance().currentUser
+            if (user != null) {
+                val userId = user.uid
+                val role = userViewModel.loggedInUserLD.value?.userType ?: "Unknown"
 
-            // Clear SharedPreferences
-            val sharedPreferences = requireContext().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE)
-            sharedPreferences.edit().clear().apply()
+                lifecycleScope.launch {
+                    // Remove FCM token using TokenViewModel
+                    tokenViewModel.removeFCMToken(userId, role)
+                }
 
-            //clear back stack every time enter top level destination
-            requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigationView).menu.clear()
-            nav.navigate(R.id.loginFragment)
+                // Proceed with logout
+                authViewModel.logout()
+                userViewModel.clearData()
+
+                // Clear SharedPreferences
+                val sharedPreferences = requireContext().getSharedPreferences("UserPreferences", Context.MODE_PRIVATE)
+                sharedPreferences.edit().clear().apply()
+
+                // Clear BottomNavigationView's menu
+                requireActivity().findViewById<BottomNavigationView>(R.id.bottomNavigationView).menu.clear()
+                nav.navigate(R.id.loginFragment)
+            } else {
+                Toast.makeText(context, "No user is currently logged in.", Toast.LENGTH_SHORT).show()
+                Log.w("UserProfile", "Logout attempted without a logged-in user.")
+            }
         }
 
         binding.btnMedicationHistory.setOnClickListener {
@@ -159,6 +190,4 @@ class UserProfile : Fragment() {
 
         return binding.root
     }
-
-
 }

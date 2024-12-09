@@ -1,13 +1,11 @@
-package com.example.trackurpill.caregiverManagement.ui
+// File: CaregiverMonitorFragment.kt
 
-import android.app.AlertDialog
-import android.widget.EditText
-import android.widget.Toast
-import androidx.fragment.app.Fragment
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,6 +15,8 @@ import com.example.trackurpill.caregiverManagement.util.PatientAdapter
 import com.example.trackurpill.databinding.FragmentCaregiverMonitorBinding
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 
 class CaregiverMonitorFragment : Fragment() {
 
@@ -24,12 +24,14 @@ class CaregiverMonitorFragment : Fragment() {
     private val nav by lazy { findNavController() }
     private val patientViewModel: CaregiverMonitorViewModel by activityViewModels()
     private lateinit var adapter: PatientAdapter
+    private lateinit var functions: FirebaseFunctions
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
         binding = FragmentCaregiverMonitorBinding.inflate(inflater, container, false)
+        functions = FirebaseFunctions.getInstance()
 
         adapter = PatientAdapter { patient ->
             nav.navigate(
@@ -42,7 +44,7 @@ class CaregiverMonitorFragment : Fragment() {
 
         binding.fabAddPatient.setOnClickListener {
             val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_email_invitation, null)
-            val dialog = AlertDialog.Builder(requireContext())
+            val dialog = android.app.AlertDialog.Builder(requireContext())
                 .setView(dialogView)
                 .setCancelable(false)
                 .create()
@@ -61,12 +63,16 @@ class CaregiverMonitorFragment : Fragment() {
                     return@setOnClickListener
                 }
 
-                val caregiverId = FirebaseAuth.getInstance().currentUser?.uid ?: return@setOnClickListener
+                val caregiverId = FirebaseAuth.getInstance().currentUser?.uid
+                if (caregiverId == null) {
+                    Toast.makeText(requireContext(), "User not authenticated.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
 
-                // Send invitation and handle result
-                patientViewModel.sendPatientInvitation(email, caregiverId) { result ->
-                    Toast.makeText(requireContext(), result, Toast.LENGTH_SHORT).show()
-                    if (result == "Invitation sent successfully") {
+                // Call the Cloud Function
+                sendPatientInvitation(email, caregiverId) { success, message ->
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    if (success) {
                         dialog.dismiss()
                     }
                 }
@@ -75,17 +81,50 @@ class CaregiverMonitorFragment : Fragment() {
             dialog.show()
         }
 
-
-
-
         val caregiverId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
         // Observe filtered patients assigned to the caregiver
-        val filteredPatientsLD = patientViewModel.observePatients(caregiverId)
-        filteredPatientsLD.observeForever { patients ->
+        patientViewModel.observePatients(caregiverId).observe(viewLifecycleOwner) { patients ->
             adapter.submitList(patients)
         }
 
         return binding.root
+    }
+
+    /**
+     * Calls the sendPatientInvitation Cloud Function.
+     */
+    private fun sendPatientInvitation(email: String, caregiverId: String, callback: (Boolean, String) -> Unit) {
+        val data = hashMapOf(
+            "patientEmail" to email,
+            "caregiverId" to caregiverId
+        )
+
+        functions
+            .getHttpsCallable("sendPatientInvitation")
+            .call(data)
+            .continueWith { task ->
+                // This continuation runs on the main thread
+                val result = task.result?.data as? Map<*, *>
+                result
+            }
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    val e = task.exception
+                    if (e is FirebaseFunctionsException) {
+                        val code = e.code
+                        val details = e.details
+                        callback(false, "Error: ${e.message}")
+                    } else {
+                        callback(false, "Error: ${e?.message}")
+                    }
+                } else {
+                    val result = task.result
+                    val success = result?.get("success") as? Boolean ?: false
+                    val message = result?.get("message") as? String ?: "Unknown response."
+
+                    callback(success, message)
+                }
+            }
     }
 }

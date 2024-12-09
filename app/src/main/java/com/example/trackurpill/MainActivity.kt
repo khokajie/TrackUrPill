@@ -3,9 +3,11 @@ package com.example.trackurpill
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -23,16 +25,34 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.example.trackurpill.data.MedicationLog
 import com.example.trackurpill.databinding.ActivityMainBinding
+import com.example.trackurpill.medicationManagement.data.MedicationLogViewModel
+import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
+import com.example.trackurpill.notification.data.NotificationViewModel
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
+import java.util.Date
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
     private lateinit var appBarConfiguration: AppBarConfiguration
+    private lateinit var functions: FirebaseFunctions
+    private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     private val userViewModel: LoggedInUserViewModel by viewModels()
+    private val notificationVM: NotificationViewModel by viewModels()
+    private val medicationVM: PatientMedicationViewModel by viewModels()
+    private val logVM: MedicationLogViewModel by viewModels()
 
     // Define top-level destinations
     private val patientTLD = setOf(
@@ -56,6 +76,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        functions = Firebase.functions
+        handleIntent(intent)
+
         createNotificationChannel()
         checkAndRequestNotificationPermission()
 
@@ -68,6 +91,7 @@ class MainActivity : AppCompatActivity() {
         // Observe the LiveData
         userViewModel.loggedInUserLD.observe(this, Observer { loggedInUser ->
             if (loggedInUser != null) {
+                currentUserType = loggedInUser.userType
                 configureAppBar(loggedInUser.userType)
                 configureBottomNav(loggedInUser.userType)
                 setupActionBarWithNavController(nav, appBarConfiguration)
@@ -95,26 +119,6 @@ class MainActivity : AppCompatActivity() {
 
         // Check login state after setting up the observer
         checkLoginState()
-    }
-
-    private fun configureNavigationBasedOnUserType(userType: String) {
-        currentUserType = userType // Store the current user type
-        configureAppBar(userType)
-        configureBottomNav(userType)
-        setupActionBarWithNavController(nav, appBarConfiguration)
-        binding.bottomNavigationView.setupWithNavController(nav)
-        showBottomNavigation()
-
-        // Navigate to the main content and clear the back stack
-        val startDestination = if (userType == "Patient") {
-            R.id.patientMedicationFragment
-        } else {
-            R.id.caregiverMonitorFragment
-        }
-
-        nav.navigate(startDestination, null, NavOptions.Builder()
-            .setPopUpTo(R.id.loginFragment, true) // Remove loginFragment from back stack
-            .build())
     }
 
     private fun configureAppBar(userType: String) {
@@ -179,21 +183,6 @@ class MainActivity : AppCompatActivity() {
     fun showTopAppBar() {
         supportActionBar?.show()
     }
-
-    private fun createInvitationNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "INVITATION_CHANNEL",
-                "Caregiver Invitations",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for caregiver invitations"
-            }
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -293,5 +282,80 @@ class MainActivity : AppCompatActivity() {
             }
             .create()
             .show()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    /**
+     * Handles incoming intents, particularly those triggered by notification actions.
+     */
+    private fun handleIntent(intent: Intent) {
+        val action = intent.action
+        val reminderId = intent.getStringExtra("reminderId")
+        val medicationId = intent.getStringExtra("medicationId")
+        val notificationId = intent.getStringExtra("notificationId")
+        val dosageStr = intent.getStringExtra("dosage") ?: "1 Tablet"
+        val message = intent.getStringExtra("message") ?: "You have a new notification."
+
+        when (action) {
+            "ACTION_TAKE_MEDICATION" -> {
+                markMedicationAsTaken(medicationId, notificationId, dosageStr)
+                cancelNotification(notificationId)
+            }
+            "ACTION_DISMISS_REMINDER" -> {
+                dismissReminder(notificationId)
+                cancelNotification(notificationId)
+            }
+            else -> runOnUiThread {
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun markMedicationAsTaken(medicationId: String?, notificationId: String?, dosageStr: String?) {
+        if (medicationId == null || notificationId == null || dosageStr == null) return
+
+        val userId = auth.currentUser?.uid ?: return
+
+        medicationVM.fetchMedicationById(medicationId) { medication ->
+            runOnUiThread {
+                if (medication != null) {
+                    val medicationLog = MedicationLog(
+                        UUID.randomUUID().toString(),
+                        medication.medicationId,
+                        medication.medicationName,
+                        dosageStr,
+                        Date(),
+                        userId
+                    )
+                    // Mark medication as taken
+                    medicationVM.markMedicationAsTaken(medicationId, dosageStr)
+                    logVM.setLog(medicationLog)
+                    notificationVM.takenReminder(notificationId)
+                    Toast.makeText(this, "Medication marked as taken.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Medication not found.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun dismissReminder(notificationId: String?) {
+        if (notificationId == null) return
+
+        notificationVM.dismissReminder(notificationId)
+        runOnUiThread {
+            Toast.makeText(this, "Reminder dismissed.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun cancelNotification(notificationId: String?) {
+        notificationId?.let {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancel(it.hashCode())
+        }
     }
 }

@@ -43,7 +43,7 @@ class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
 
 
     // Add a medication log entry
-    fun addLog(medicationLog: MedicationLog) {
+    fun setLog(medicationLog: MedicationLog) {
         MEDICATION_LOG.document(medicationLog.logId).set(medicationLog)
     }
 

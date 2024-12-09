@@ -2,14 +2,20 @@
 package com.example.trackurpill.medicationManagement.data
 
 import android.app.Application
+import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.MEDICATION
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.notification.data.NotificationViewModel
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.toObjects
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
@@ -126,6 +132,76 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
             specificMedicationLD.value = medication
         }
         return specificMedicationLD
+    }
+
+
+    fun fetchMedicationById(medicationId: String, callback: (Medication?) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val snapshot = MEDICATION.document(medicationId).get().await()
+                if (snapshot.exists()) {
+                    val medication = snapshot.toObject(Medication::class.java)
+                    callback(medication)
+                } else {
+                    Log.w("PatientMedicationVM", "Medication with ID $medicationId not found.")
+                    callback(null)
+                }
+            } catch (e: Exception) {
+                Log.e("PatientMedicationVM", "Error fetching Medication: ", e)
+                callback(null)
+            }
+        }
+    }
+
+    /**
+     * Extracts the numerical dosage from a dosage string.
+     * Example: "2 Tablet" -> 2
+     */
+    private fun extractDosageNumber(dosageStr: String): Int {
+        val regex = Regex("(\\d+)")
+        val matchResult = regex.find(dosageStr)
+        return matchResult?.groups?.get(1)?.value?.toIntOrNull() ?: 0
+    }
+
+    /**
+     * Marks medication as taken by deducting the dosage from stockLevel.
+     */
+    fun markMedicationAsTaken(medicationId: String, dosageStr: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Extract dosage number
+                val dosage = extractDosageNumber(dosageStr)
+                if (dosage <= 0) {
+                    throw FirebaseFirestoreException("Invalid dosage value.", FirebaseFirestoreException.Code.INVALID_ARGUMENT)
+                }
+
+                // Fetch the Medication document
+                val medicationSnapshot = MEDICATION.document(medicationId).get().await()
+                if (!medicationSnapshot.exists()) {
+                    throw FirebaseFirestoreException("Medication not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                }
+
+                val medication = medicationSnapshot.toObject(Medication::class.java)
+                    ?: throw FirebaseFirestoreException("Failed to parse Medication.", FirebaseFirestoreException.Code.UNKNOWN)
+
+                // Check stock availability
+                if (medication.stockLevel < dosage) {
+                    throw FirebaseFirestoreException("Insufficient medication stock.", FirebaseFirestoreException.Code.ABORTED)
+                }
+
+                // Deduct dosage from stockLevel
+                val updatedMedication = medication.copy(stockLevel = medication.stockLevel - dosage)
+
+                // Update the Medication document
+                setMedication(updatedMedication)
+
+
+            } catch (e: FirebaseFirestoreException) {
+                Log.e("PatientMedicationVM", "Error marking medication as taken: ", e)
+            } catch (e: Exception) {
+                Log.e("PatientMedicationVM", "Unexpected error: ", e)
+            }
+        }
     }
 
 }

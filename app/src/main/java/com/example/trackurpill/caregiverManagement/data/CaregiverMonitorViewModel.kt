@@ -205,7 +205,7 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
         val notification = Notification(
             notificationId = UUID.randomUUID().toString(),
             message = message,
-            receiveTime = Date(),
+            timestamp = Date(),
             type = "invitation",
             userId = userId,
             status = "Pending",

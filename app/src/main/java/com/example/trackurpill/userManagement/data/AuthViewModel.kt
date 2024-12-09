@@ -14,8 +14,6 @@ import kotlinx.coroutines.tasks.await
 
 class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val PATIENT = Firebase.firestore.collection("Patient")
-    private val CAREGIVER = Firebase.firestore.collection("Caregiver")
     private val firebaseAuth = FirebaseAuth.getInstance()
 
     // LiveData for user roles and user objects

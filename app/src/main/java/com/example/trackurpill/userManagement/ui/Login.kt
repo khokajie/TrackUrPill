@@ -1,3 +1,4 @@
+// File: Login.kt
 package com.example.trackurpill.userManagement.ui
 
 import android.app.AlertDialog
@@ -17,12 +18,12 @@ import com.example.trackurpill.R
 import com.example.trackurpill.data.AuthViewModel
 import com.example.trackurpill.databinding.FragmentLoginBinding
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
+import com.example.trackurpill.userManagement.data.TokenViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.launch
 
 class Login : Fragment() {
@@ -31,8 +32,8 @@ class Login : Fragment() {
     private val nav by lazy { findNavController() }
     private val authViewModel: AuthViewModel by activityViewModels()
     private val userViewModel: LoggedInUserViewModel by activityViewModels()
+    private val tokenViewModel: TokenViewModel by activityViewModels()
     private val firebaseAuth = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -80,8 +81,11 @@ class Login : Fragment() {
                 if (role != "NA" && userId != null) {
                     storeUserSession(userId, role)
                     userViewModel.setLoggedInUser(role, userId)
-                    println("User logged in")
-                    updateFCMToken(userId, role) // Update FCM token after login
+                    Log.d("Login", "User logged in with role: $role and userId: $userId")
+
+                    // Update FCM token using TokenViewModel
+                    tokenViewModel.updateFCMToken(userId, role)
+
                     navigateBasedOnRole(role)
                 } else {
                     showToast("Invalid email or password.")
@@ -100,6 +104,7 @@ class Login : Fragment() {
             is FirebaseAuthInvalidCredentialsException -> showToast("Wrong email or password.")
             else -> showToast("Login failed: ${e.message}")
         }
+        Log.e("Login", "Login failed", e)
     }
 
     private fun navigateBasedOnRole(role: String) {
@@ -117,9 +122,9 @@ class Login : Fragment() {
 
     private fun showForgotPasswordDialog() {
         val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_forgot_password, null)
-        val emailEditText = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.forgotPasswordEmail)
-        val dialogSendButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.dialogSendButton)
-        val dialogCancelButton = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.dialogCancelButton)
+        val emailEditText = dialogView.findViewById<TextInputEditText>(R.id.forgotPasswordEmail)
+        val dialogSendButton = dialogView.findViewById<View>(R.id.dialogSendButton)
+        val dialogCancelButton = dialogView.findViewById<View>(R.id.dialogCancelButton)
 
         val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
@@ -152,6 +157,7 @@ class Login : Fragment() {
                     Toast.makeText(requireContext(), "Password reset email sent. Check your inbox.", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(requireContext(), "Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("Login", "Password reset email failed", task.exception)
                 }
             }
     }
@@ -167,7 +173,7 @@ class Login : Fragment() {
             putString("userType", userType)
             apply()
         }
-        println("User session stored: UserType=$userType, UserId=$userId")
+        Log.d("Login", "User session stored: UserType=$userType, UserId=$userId")
     }
 
     override fun onResume() {
@@ -184,40 +190,7 @@ class Login : Fragment() {
 
     /**
      * Retrieves the FCM token and updates it in Firestore.
+     * Now handled by TokenViewModel.
      */
-    private fun updateFCMToken(userId: String, role: String) {
-        FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    Log.w("Login", "Fetching FCM registration token failed", task.exception)
-                    return@addOnCompleteListener
-                }
-
-                // Get new FCM registration token
-                val token = task.result
-
-                // Update the token in Firestore based on user type
-                if (role == "Caregiver") {
-                    firestore.collection("Caregiver").document(userId)
-                        .update("fcmToken", token)
-                        .addOnSuccessListener {
-                            Log.d("Login", "FCM token updated for Caregiver.")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("Login", "Failed to update FCM token for Caregiver", e)
-                        }
-                } else if (role == "Patient") {
-                    firestore.collection("Patient").document(userId)
-                        .update("fcmToken", token)
-                        .addOnSuccessListener {
-                            Log.d("Login", "FCM token updated for Patient.")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("Login", "Failed to update FCM token for Patient", e)
-                        }
-                } else {
-                    Log.e("Login", "Unknown user role: $role")
-                }
-            }
-    }
+    // Removed direct Firestore operations for FCM token
 }

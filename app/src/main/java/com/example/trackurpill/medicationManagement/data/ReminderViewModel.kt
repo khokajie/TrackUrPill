@@ -5,12 +5,16 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.example.trackurpill.data.MEDICATION
+import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.REMINDER
 import com.example.trackurpill.data.Reminder
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObjects
 import com.google.firebase.functions.ktx.functions
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -155,5 +159,23 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
         if (reverse) list = list.reversed()
 
         resultLD.value = list
+    }
+
+    fun fetchReminderById(reminderId: String, callback: (Reminder?) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val snapshot = REMINDER.document(reminderId).get().await()
+                if (snapshot.exists()) {
+                    val reminder = snapshot.toObject(Reminder::class.java)
+                    callback(reminder)
+                } else {
+                    Log.w("PatientReminderVM", "Reminder with ID $reminderId not found.")
+                    callback(null)
+                }
+            } catch (e: Exception) {
+                Log.e("PatientReminderVM", "Error fetching Reminder: ", e)
+                callback(null)
+            }
+        }
     }
 }

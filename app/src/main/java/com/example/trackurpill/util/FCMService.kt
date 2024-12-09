@@ -1,24 +1,17 @@
 package com.example.trackurpill.util
 
-import android.app.NotificationManager
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.example.trackurpill.MainActivity
 import com.example.trackurpill.R
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentReference
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.messaging.FirebaseMessagingService
-import com.google.firebase.messaging.RemoteMessage
 
 class FCMService : FirebaseMessagingService() {
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         Log.d("FCM", "From: ${remoteMessage.from}")
 
@@ -26,76 +19,109 @@ class FCMService : FirebaseMessagingService() {
         remoteMessage.notification?.let {
             Log.d("FCM", "Message Notification Title: ${it.title}")
             Log.d("FCM", "Message Notification Body: ${it.body}")
-            sendNotification(it.title, it.body)
+            sendNotification(it.title, it.body, remoteMessage.data)
         }
 
         // Check if message contains a data payload.
-        remoteMessage.data.isNotEmpty().let {
+        if (remoteMessage.data.isNotEmpty()) {
             Log.d("FCM", "Message data payload: ${remoteMessage.data}")
             // Handle data payload if needed
         }
     }
 
-    private fun sendNotification(title: String?, messageBody: String?) {
-        val intent = Intent(this, MainActivity::class.java)
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+    private fun sendNotification(title: String?, messageBody: String?, data: Map<String, String>) {
+        // Extract notificationId and dosage from data payload
+        val notificationId = data["notificationId"] ?: ""
+        val dosage = data["dosage"]?.toIntOrNull() ?: 1
+
+        // Create intents for each action
+        val takeMedicationIntent = Intent(this, MainActivity::class.java).apply {
+            action = "ACTION_TAKE_MEDICATION"
+            putExtra("reminderId", data["reminderId"])
+            putExtra("medicationId", data["medicationId"])
+            putExtra("notificationId", notificationId)
+            putExtra("dosage", dosage)
+        }
+        val takeMedicationPendingIntent: PendingIntent = PendingIntent.getActivity(
+            this, 0, takeMedicationIntent,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val dismissReminderIntent = Intent(this, MainActivity::class.java).apply {
+            action = "ACTION_DISMISS_REMINDER"
+            putExtra("reminderId", data["reminderId"])
+            putExtra("medicationId", data["medicationId"])
+            putExtra("notificationId", notificationId)
+        }
+        val dismissReminderPendingIntent: PendingIntent = PendingIntent.getActivity(
+            this, 0, dismissReminderIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Create notification channel if not already created
+        createNotificationChannel()
 
         val channelId = "medication_reminders"
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification) // Ensure you have this icon
+            .setSmallIcon(R.drawable.ic_logo_blue) // Ensure you have this icon in your drawable resources
             .setContentTitle(title)
             .setContentText(messageBody)
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
-            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(
+                R.drawable.ic_taken, // Icon for "Taken" action
+                "Taken",
+                takeMedicationPendingIntent
+            )
+            .addAction(
+                R.drawable.ic_dismiss, // Icon for "Dismiss" action
+                "Dismiss",
+                dismissReminderPendingIntent
+            )
 
         with(NotificationManagerCompat.from(this)) {
-            notify(0, notificationBuilder.build())
+            notify(notificationId.hashCode(), notificationBuilder.build()) // Use notificationId for uniqueness
         }
     }
 
     /**
-     * Updates the FCM token in Firestore based on the user's role.
-     *
-     * @param token The new FCM token.
+     * Creates a notification channel for Android 8.0 and above.
      */
-    private fun updateFCMToken(token: String) {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        updateFCMTokenForRole(userId, "Patient", token)
-        updateFCMTokenForRole(userId, "Caregiver", token)
+    private fun createNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channelId = "medication_reminders"
+            val channelName = "Medication Reminders"
+            val importance = android.app.NotificationManager.IMPORTANCE_HIGH
+            val channel = android.app.NotificationChannel(channelId, channelName, importance).apply {
+                description = "Notifications for medication reminders"
+            }
+            val notificationManager: android.app.NotificationManager =
+                getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
-    /**
-     * Updates the FCM token in Firestore for the specified role.
-     *
-     * @param userId The ID of the user.
-     * @param role The role of the user ("Patient" or "Caregiver").
-     */
-    private fun updateFCMTokenForRole(userId: String, role: String, token: String) {
-        val roleCollection = firestore.collection(role)
-        val userDocument: DocumentReference = roleCollection.document(userId)
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        Log.d("FCM", "Refreshed token: $token")
+        updateFcmTokenInFirestore(token)
+    }
 
-        userDocument.get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    userDocument.update("fcmToken", token)
-                        .addOnSuccessListener {
-                            Log.d("FCMService", "FCM token updated for $role.")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("FCMService", "Failed to update FCM token for $role", e)
-                        }
-                } else {
-                    Log.e("FCMService", "User not found in $role collection.")
+    private fun updateFcmTokenInFirestore(token: String) {
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+        if (userId != null) {
+            val userRef = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("Patient")
+                .document(userId)
+            userRef.update("fcmToken", token)
+                .addOnSuccessListener {
+                    Log.d("FCM", "FCM Token updated successfully.")
                 }
-            }
-            .addOnFailureListener { e ->
-                Log.e("FCMService", "Error fetching $role document", e)
-            }
+                .addOnFailureListener { e ->
+                    Log.w("FCM", "Error updating FCM Token", e)
+                }
+        }
     }
 }

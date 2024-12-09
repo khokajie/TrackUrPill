@@ -111,13 +111,16 @@ data class MedicationLog(
 )
 
 data class Notification(
+    @DocumentId
     var notificationId: String = "",
-    var message: String = "",
-    var receiveTime: Date = Date(),
-    var type: String = "", // "reminder" or "invitation"
-    var status: String = "",
+    var reminderId: String = "",
     var userId: String = "",
-    var senderId: String = ""
+    var message: String = "",
+    var status: String = "",
+    var timestamp: Date? = null,
+    var createdAt: Date? = null,
+    var type: String = "", // Optional: Include if managed elsewhere
+    var senderId: String = "" // Optional: Include if managed elsewhere
 )
 
 data class LoggedInUser(

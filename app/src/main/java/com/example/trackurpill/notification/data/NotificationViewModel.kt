@@ -1,12 +1,18 @@
 package com.example.trackurpill.notification.data
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.NOTIFICATION
 import com.example.trackurpill.data.Notification
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.toObjects
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class NotificationViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -43,7 +49,7 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
     fun getNotificationsByUser(userId: String) = getAllNotifications().filter { it.userId == userId }
 
     // Add a notification
-    fun addNotification(notification: Notification) {
+    fun setNotification(notification: Notification) {
         NOTIFICATION.document(notification.notificationId).set(notification)
     }
 
@@ -74,7 +80,6 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
 
         // Sort by field
         list = when (field) {
-            "receiveTime" -> list.sortedBy { it.receiveTime }
             "message" -> list.sortedBy { it.message }
             else -> list
         }
@@ -83,5 +88,64 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
         if (reverse) list = list.reversed()
 
         resultLD.value = list
+    }
+
+    /**
+     * Dismisses a reminder by updating the Notification's status to 'dismissed'.
+     */
+    fun dismissReminder(notificationId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Fetch the Notification document
+                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
+                if (!notificationSnapshot.exists()) {
+                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                }
+
+                val notification = notificationSnapshot.toObject(Notification::class.java)
+                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
+
+                // Update status to 'dismissed'
+                val updatedNotification = notification.copy(
+                    status = "Dismiss",
+                )
+
+                // Update the Notification document
+                setNotification(updatedNotification)
+
+            } catch (e: FirebaseFirestoreException) {
+                Log.e("NotificationVM", "Error dismissing reminder: ", e)
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Unexpected error: ", e)
+            }
+        }
+    }
+
+    fun takenReminder(notificationId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Fetch the Notification document
+                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
+                if (!notificationSnapshot.exists()) {
+                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                }
+
+                val notification = notificationSnapshot.toObject(Notification::class.java)
+                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
+
+                // Update status to 'dismissed'
+                val updatedNotification = notification.copy(
+                    status = "Taken",
+                )
+
+                // Update the Notification document
+                setNotification(updatedNotification)
+
+            } catch (e: FirebaseFirestoreException) {
+                Log.e("NotificationVM", "Error dismissing reminder: ", e)
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Unexpected error: ", e)
+            }
+        }
     }
 }
