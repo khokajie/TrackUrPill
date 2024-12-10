@@ -2,41 +2,47 @@ package com.example.trackurpill.userManagement.data
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 
 class TokenViewModel : ViewModel() {
 
     private val firestore = FirebaseFirestore.getInstance()
-    private val firebaseAuth = FirebaseAuth.getInstance()
 
     /**
      * Updates the FCM token for the current user based on their role.
      * Removes the token from any other user documents to ensure uniqueness.
      */
-    suspend fun updateFCMToken(userId: String, role: String) {
-        try {
-            val token = FirebaseMessaging.getInstance().token.await()
+    fun updateFCMToken(userId: String, role: String) {
+        viewModelScope.launch {
+            try {
+                // Retrieve FCM token with timeout
+                val token = withTimeout(5000L) { // Timeout after 5 seconds
+                    FirebaseMessaging.getInstance().token.await()
+                }
 
-            if (token.isNullOrEmpty()) {
-                Log.e("TokenViewModel", "FCM token is null or empty")
-                return
+                if (token.isNullOrEmpty()) {
+                    Log.e("TokenViewModel", "FCM token is null or empty")
+                    return@launch
+                }
+
+                // Remove token from other users
+                removeTokenFromCollection("Patient", token)
+                removeTokenFromCollection("Caregiver", token)
+
+                // Update FCM token for the current user
+                updateUserToken(userId, role, token)
+            } catch (e: CancellationException) {
+                Log.d("TokenViewModel", "Token update operation cancelled.")
+            } catch (e: Exception) {
+                Log.e("TokenViewModel", "Error updating FCM token", e)
             }
-
-            // Remove token from other users
-            removeTokenFromCollection("Patient", token)
-            removeTokenFromCollection("Caregiver", token)
-
-            // Update FCM token for the current user
-            updateUserToken(userId, role, token)
-        } catch (e: CancellationException) {
-            Log.d("TokenViewModel", "Token update operation cancelled.")
-        } catch (e: Exception) {
-            Log.e("TokenViewModel", "Error updating FCM token", e)
         }
     }
 
@@ -89,25 +95,27 @@ class TokenViewModel : ViewModel() {
     /**
      * Removes the FCM token associated with the current user upon logout.
      */
-    suspend fun removeFCMToken(userId: String, role: String) {
-        try {
-            val collection = when (role) {
-                "Caregiver" -> "Caregiver"
-                "Patient" -> "Patient"
-                else -> {
-                    Log.e("TokenViewModel", "Unknown user role: $role")
-                    return
+    fun removeFCMToken(userId: String, role: String) {
+        viewModelScope.launch {
+            try {
+                val collection = when (role) {
+                    "Caregiver" -> "Caregiver"
+                    "Patient" -> "Patient"
+                    else -> {
+                        Log.e("TokenViewModel", "Unknown user role: $role")
+                        return@launch
+                    }
                 }
-            }
 
-            firestore.collection(collection).document(userId)
-                .update("fcmToken", FieldValue.delete())
-                .await()
-            Log.d("TokenViewModel", "FCM token removed for $role: $userId")
-        } catch (e: CancellationException) {
-            Log.d("TokenViewModel", "Token removal operation cancelled.")
-        } catch (e: Exception) {
-            Log.e("TokenViewModel", "Error removing FCM token for $role: $userId", e)
+                firestore.collection(collection).document(userId)
+                    .update("fcmToken", FieldValue.delete())
+                    .await()
+                Log.d("TokenViewModel", "FCM token removed for $role: $userId")
+            } catch (e: CancellationException) {
+                Log.d("TokenViewModel", "Token removal operation cancelled.")
+            } catch (e: Exception) {
+                Log.e("TokenViewModel", "Error removing FCM token for $role: $userId", e)
+            }
         }
     }
 }

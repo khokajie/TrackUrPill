@@ -1,3 +1,5 @@
+// File: functions/index.js
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const moment = require("moment-timezone");
@@ -116,10 +118,7 @@ function calculateNextReminderTime(reminder, userTimeZone) {
         millisecond: 0,
       });
 
-      console.log(
-        "Daily reminder time before adjustment:",
-        reminderTime.format(),
-      );
+      console.log("Daily reminder time before adjustment:", reminderTime.format());
 
       if (reminderTime.isBefore(now)) {
         reminderTime.add(1, "day");
@@ -152,12 +151,15 @@ function calculateNextReminderTime(reminder, userTimeZone) {
 
       const now = moment().tz(userTimeZone);
       const dayIndex = VALID_DAYS.indexOf(reminder.day);
-      const reminderTime = now.clone().day(dayIndex).set({
-        hour: hour,
-        minute: minute,
-        second: 0,
-        millisecond: 0,
-      });
+      const reminderTime = now
+        .clone()
+        .day(dayIndex)
+        .set({
+          hour: hour,
+          minute: minute,
+          second: 0,
+          millisecond: 0,
+        });
 
       console.log(
         "Weekly reminder time before adjustment:",
@@ -388,10 +390,7 @@ exports.processScheduledReminders = functions.pubsub
   .schedule("every 1 minutes")
   .onRun(async () => {
     const now = admin.firestore.Timestamp.now();
-    console.log(
-      "Processing scheduled reminders at:",
-      now.toDate().toISOString(),
-    );
+    console.log("Processing scheduled reminders at:", now.toDate().toISOString());
 
     try {
       const querySnapshot = await admin
@@ -451,15 +450,16 @@ exports.processScheduledReminders = functions.pubsub
           console.log(`Sending notification to FCM token: ${fcmToken}`);
 
           // Ensure all data fields are strings
-          const dosage = reminder.dosage || 1; // Default dosage if not specified
+          const dosage = reminder.dosage || "1 Tablet"; // Default dosage if not specified
 
           const dataPayload = {
+            type: "reminder", // Specify the type
             reminderId: String(reminder.reminderId),
             medicationId: String(reminder.medicationId),
             medicationName: String(reminder.medicationName),
             dosage: dosage.toString(), // Convert to string for FCM
             userId: String(reminder.userId),
-            // Include notificationId later
+            notificationId: reminderId, // Use reminderId as notificationId
           };
 
           // Create a unique notificationId
@@ -471,22 +471,14 @@ exports.processScheduledReminders = functions.pubsub
           // Add notificationId to dataPayload
           dataPayload.notificationId = notificationId;
 
-          // Define actions (handled client-side)
-          // Since 'actions' are not supported in FCM payload for Android, we remove them here.
-
-          // Send notification without 'actions'
+          // Send data-only FCM message
           const messagingResponse = await admin.messaging().send({
-            notification: {
-              title: "Medication Reminder",
-              body: `Time to take ${reminder.medicationName} (${dosage})`,
-            },
             data: dataPayload, // All values are strings
             android: {
               priority: "high",
               notification: {
                 channelId: "medication_reminders",
                 priority: "high",
-                // Removed 'actions' from here
               },
             },
             token: fcmToken,
@@ -495,10 +487,7 @@ exports.processScheduledReminders = functions.pubsub
           console.log(
             `Notification sent for reminder ${reminderId} with Notification ID: ${notificationId}`,
           );
-          console.log(
-            `FCM Response for reminder ${reminderId}:`,
-            messagingResponse,
-          );
+          console.log(`FCM Response for reminder ${reminderId}:`, messagingResponse);
 
           // Create notification record
           const notificationRef = admin
@@ -508,7 +497,7 @@ exports.processScheduledReminders = functions.pubsub
 
           await notificationRef.set({
             reminderId: reminderId,
-            type: "reminder",
+            type: "reminder", // Specify the type
             userId: userId,
             message: `Time to take ${reminder.medicationName} (${dosage})`,
             status: "Sent",
@@ -531,12 +520,8 @@ exports.processScheduledReminders = functions.pubsub
             ]);
             console.log(`Reminder ${reminderId} marked as completed.`);
           } else {
-            const nextTime = calculateNextReminderTime(
-              reminder,
-              reminder.userTimeZone,
-            );
-            const nextTimestamp =
-              admin.firestore.Timestamp.fromMillis(nextTime);
+            const nextTime = calculateNextReminderTime(reminder, reminder.userTimeZone);
+            const nextTimestamp = admin.firestore.Timestamp.fromMillis(nextTime);
 
             await Promise.all([
               reminderDoc.ref.update({
@@ -657,121 +642,147 @@ exports.cancelReminder = functions.https.onCall(async (data, context) => {
  * @param {object} context - Authentication context.
  * @returns {object} - Success or error message.
  */
-exports.sendPatientInvitation = functions.https.onCall(
-  async (data, context) => {
-    try {
-      // Authentication check
-      if (!context.auth) {
-        throw new functions.https.HttpsError(
-          "unauthenticated",
-          "User must be authenticated.",
-        );
-      }
-
-      const { patientEmail, caregiverId } = data;
-
-      // Validate input
-      if (!patientEmail || typeof patientEmail !== "string") {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Valid patientEmail is required.",
-        );
-      }
-
-      if (!caregiverId || typeof caregiverId !== "string") {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Valid caregiverId is required.",
-        );
-      }
-
-      // Find patient by email
-      const patientQuerySnapshot = await admin
-        .firestore()
-        .collection("Patient")
-        .where("email", "==", patientEmail)
-        .get();
-
-      if (patientQuerySnapshot.empty) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "No patient found with the provided email.",
-        );
-      }
-
-      const patientDoc = patientQuerySnapshot.docs[0];
-      const patientId = patientDoc.id;
-      const fcmToken = patientDoc.data().fcmToken;
-
-      if (!fcmToken) {
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "Patient does not have a valid FCM token.",
-        );
-      }
-
-      // Create a unique notificationId (document ID)
-      const notificationId = admin
-        .firestore()
-        .collection("Notification")
-        .doc().id;
-
-      const notificationData = {
-        userId: patientId,
-        senderId: caregiverId,
-        message:
-          "A caregiver has invited you to TrackUrPill. Check your app to get started.",
-        type: "invitation",
-        status: "Pending",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      await admin
-        .firestore()
-        .collection("Notification")
-        .doc(notificationId)
-        .set(notificationData);
-
-      // Prepare FCM payload without 'click_action'
-      const payload = {
-        notification: {
-          title: "You've Been Invited!",
-          body: notificationData.message,
-          // Removed 'click_action' to handle it in the app
-        },
-        data: {
-          type: notificationData.type,
-          notificationId: notificationId,
-          senderId: caregiverId,
-        },
-      };
-
-      // Send FCM notification
-      const response = await admin.messaging().sendToDevice(fcmToken, payload);
-      console.log(`FCM Response: ${JSON.stringify(response)}`);
-
-      // Optionally, update the Notification document with FCM response
-      await admin
-        .firestore()
-        .collection("Notification")
-        .doc(notificationId)
-        .update({
-          fcmResponse: response,
-          status: "Sent",
-          sentAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-
-      return { success: true, message: "Invitation sent successfully." };
-    } catch (error) {
-      console.error("Error sending patient invitation:", error);
-      if (error instanceof functions.https.HttpsError) {
-        throw error;
-      }
+exports.sendPatientInvitation = functions.https.onCall(async (data, context) => {
+  try {
+    // Authentication check
+    if (!context.auth) {
       throw new functions.https.HttpsError(
-        "internal",
-        error.message || "An unknown error occurred.",
+        "unauthenticated",
+        "User must be authenticated.",
       );
     }
-  },
-);
+
+    const { patientEmail, caregiverId } = data;
+
+    // Validate input
+    if (!patientEmail || typeof patientEmail !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid patientEmail is required.",
+      );
+    }
+
+    if (!caregiverId || typeof caregiverId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid caregiverId is required.",
+      );
+    }
+
+    // Find patient by email
+    const patientQuerySnapshot = await admin
+      .firestore()
+      .collection("Patient")
+      .where("userEmail", "==", patientEmail)
+      .get();
+
+    if (patientQuerySnapshot.empty) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "No patient found with the provided email.",
+      );
+    }
+
+    const patientDoc = patientQuerySnapshot.docs[0];
+    const patientId = patientDoc.id;
+    const fcmToken = patientDoc.data().fcmToken;
+
+    if (!fcmToken) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Patient does not have a valid FCM token.",
+      );
+    }
+
+    // Fetch caregiver's username using caregiverId
+    const caregiverDoc = await admin
+      .firestore()
+      .collection("Caregiver")
+      .doc(caregiverId)
+      .get();
+
+    if (!caregiverDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "No caregiver found with the provided caregiverId.",
+      );
+    }
+
+    const caregiverData = caregiverDoc.data();
+    const caregiverUsername = caregiverData.userName || "Caregiver";
+
+    // Create a unique notificationId (document ID)
+    const notificationDocRef = admin
+      .firestore()
+      .collection("Notification")
+      .doc();
+    const notificationId = notificationDocRef.id;
+
+    const notificationData = {
+      userId: patientId,
+      senderId: caregiverId,
+      message: `A caregiver (${caregiverUsername}) wants to help you to monitor your medication adherence. 
+Check your app to accept the invitation.`,
+      type: "invitation",
+      status: "Sent",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp: admin.firestore.Timestamp.now(),
+    };
+
+    // Prepare dataPayload without notificationId
+    const dataPayload = {
+      type: "invitation", // Specify the type
+      userId: patientId,
+      senderId: caregiverId,
+      message: notificationData.message,
+      receivedAt: admin.firestore.FieldValue.serverTimestamp(), // Add received timestamp
+      notificationId: notificationId, // Include notificationId for actions
+    };
+
+    // Prepare FCM message with dataPayload only
+    const message = {
+      token: fcmToken,
+      data: {
+        type: dataPayload.type, // Specify the type
+        notificationId: notificationId, // Use document ID as notificationId
+        senderId: dataPayload.senderId,
+        userId: dataPayload.userId,
+        message: dataPayload.message,
+        receivedAt: new Date().toISOString(), // Convert timestamp to ISO string
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "invitation_notifications",
+          priority: "high",
+        },
+      },
+    };
+
+    // Send FCM notification using send() instead of sendToDevice()
+    const response = await admin.messaging().send(message);
+    console.log(`FCM Response: ${response}`);
+
+    // Update the Notification document with FCM response and receivedAt timestamp
+    await notificationDocRef.set(
+      {
+        ...notificationData,
+        fcmResponse: response,
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    return { success: true, message: "Invitation sent successfully." };
+  } catch (error) {
+    console.error("Error sending patient invitation:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      "internal",
+      error.message || "An unknown error occurred.",
+    );
+  }
+});

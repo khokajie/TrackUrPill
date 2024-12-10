@@ -1,4 +1,4 @@
-// File: CaregiverMonitorFragment.kt
+package com.example.trackurpill.caregiverManagement.ui// File: com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorFragment.kt
 
 import android.os.Bundle
 import android.view.LayoutInflater

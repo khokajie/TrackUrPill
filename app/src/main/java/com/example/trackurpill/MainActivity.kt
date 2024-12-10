@@ -1,3 +1,5 @@
+// File: app/src/main/java/com/example/trackurpill/MainActivity.kt
+
 package com.example.trackurpill
 
 import android.app.NotificationChannel
@@ -12,11 +14,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
 import androidx.navigation.NavOptions
@@ -33,10 +33,6 @@ import com.example.trackurpill.notification.data.NotificationViewModel
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
-import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.functions.ktx.functions
-import com.google.firebase.ktx.Firebase
 import java.util.Date
 import java.util.UUID
 
@@ -45,7 +41,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
     private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var functions: FirebaseFunctions
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -76,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        functions = Firebase.functions
+        // Handle the intent when the activity is created
         handleIntent(intent)
 
         createNotificationChannel()
@@ -197,6 +192,7 @@ class MainActivity : AppCompatActivity() {
             val notificationManager: NotificationManager =
                 getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            Log.d("MainActivity", "Notification channel created: $channelId")
         }
     }
 
@@ -217,8 +213,10 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == 1001) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Notification permission granted")
             } else {
                 Toast.makeText(this, "Notification permission denied", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Notification permission denied")
             }
         }
     }
@@ -231,6 +229,9 @@ class MainActivity : AppCompatActivity() {
         if (userId != null && userType != null) {
             // Set the loggedInUser in the ViewModel
             userViewModel.setLoggedInUser(userType, userId)
+            Log.d("MainActivity", "User logged in: $userId, Type: $userType")
+        } else {
+            Log.d("MainActivity", "User not logged in")
         }
     }
 
@@ -290,72 +291,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Handles incoming intents, particularly those triggered by notification actions.
+     * Handles incoming intents, particularly those triggered by notification taps.
      */
     private fun handleIntent(intent: Intent) {
-        val action = intent.action
+        val type = intent.getStringExtra("type") // Type of notification
+        val notificationId = intent.getStringExtra("notificationId")
+        val senderId = intent.getStringExtra("senderId")
         val reminderId = intent.getStringExtra("reminderId")
         val medicationId = intent.getStringExtra("medicationId")
-        val notificationId = intent.getStringExtra("notificationId")
         val dosageStr = intent.getStringExtra("dosage") ?: "1 Tablet"
         val message = intent.getStringExtra("message") ?: "You have a new notification."
 
-        when (action) {
-            "ACTION_TAKE_MEDICATION" -> {
-                markMedicationAsTaken(medicationId, notificationId, dosageStr)
-                cancelNotification(notificationId)
-            }
-            "ACTION_DISMISS_REMINDER" -> {
-                dismissReminder(notificationId)
-                cancelNotification(notificationId)
-            }
-            else -> runOnUiThread {
+        Log.d("MainActivity", "handleIntent called with type: $type")
+
+        // Handle notification tap if needed
+        if (type == null) return
+
+        when (type) {
+            "reminder" -> {
+                // Navigate to Medication Details or relevant screen
+                // Implement navigation logic as per your app's flow
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.d("MainActivity", "Reminder notification tapped: $message")
             }
-        }
-    }
-
-    private fun markMedicationAsTaken(medicationId: String?, notificationId: String?, dosageStr: String?) {
-        if (medicationId == null || notificationId == null || dosageStr == null) return
-
-        val userId = auth.currentUser?.uid ?: return
-
-        medicationVM.fetchMedicationById(medicationId) { medication ->
-            runOnUiThread {
-                if (medication != null) {
-                    val medicationLog = MedicationLog(
-                        UUID.randomUUID().toString(),
-                        medication.medicationId,
-                        medication.medicationName,
-                        dosageStr,
-                        Date(),
-                        userId
-                    )
-                    // Mark medication as taken
-                    medicationVM.markMedicationAsTaken(medicationId, dosageStr)
-                    logVM.setLog(medicationLog)
-                    notificationVM.takenReminder(notificationId)
-                    Toast.makeText(this, "Medication marked as taken.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Medication not found.", Toast.LENGTH_SHORT).show()
-                }
+            "invitation" -> {
+                // Navigate to Invitation screen or relevant action
+                // Implement navigation logic as per your app's flow
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                Log.d("MainActivity", "Invitation notification tapped: $message")
             }
-        }
-    }
-
-    private fun dismissReminder(notificationId: String?) {
-        if (notificationId == null) return
-
-        notificationVM.dismissReminder(notificationId)
-        runOnUiThread {
-            Toast.makeText(this, "Reminder dismissed.", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun cancelNotification(notificationId: String?) {
-        notificationId?.let {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancel(it.hashCode())
+            else -> {
+                Toast.makeText(this, "Unknown notification type.", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Unknown notification type: $type")
+            }
         }
     }
 }

@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="TrackUrPill">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-12-09T16:31:29.860749300Z">
+        <DropdownSelection timestamp="2024-12-10T17:23:49.072630800Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=ab910758" />
@@ -16,11 +16,6 @@
             <Target type="DEFAULT_BOOT">
               <handle>
                 <DeviceId pluginId="PhysicalDevice" identifier="serial=ab910758" />
-              </handle>
-            </Target>
-            <Target type="DEFAULT_BOOT">
-              <handle>
-                <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\khoka\.android\avd\Pixel_7_API_35.avd" />
               </handle>
             </Target>
           </targets>
