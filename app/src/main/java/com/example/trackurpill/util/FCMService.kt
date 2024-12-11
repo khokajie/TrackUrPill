@@ -33,6 +33,8 @@ class FCMService : FirebaseMessagingService() {
                 remoteMessage.data,
                 type
             )
+        } else {
+            Log.w("FCMService", "Message data payload is empty")
         }
     }
 
@@ -42,6 +44,8 @@ class FCMService : FirebaseMessagingService() {
         data: Map<String, String>,
         type: String?
     ) {
+        Log.d("FCMService", "Building notification for type: $type")
+
         // Extract necessary fields from data payload
         val notificationIdStr = data["notificationId"] ?: UUID.randomUUID().toString()
         val dosage = data["dosage"] ?: "1 Tablet"
@@ -60,16 +64,11 @@ class FCMService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
 
-        // Main intent to open MainActivity when notification is tapped
+        // Create the main intent to open MainActivity and navigate to NotificationFragment
         val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("type", type)
-            putExtra("notificationId", notificationIdStr)
-            putExtra("senderId", data["senderId"])
-            putExtra("reminderId", data["reminderId"])
-            putExtra("medicationId", data["medicationId"])
-            putExtra("dosage", dosage)
-            putExtra("message", messageBody)
+            Log.d("FCMService", "Open Notification, navigate to Notification Fragment")
+            putExtra("fragmentToOpen", "NotificationFragment")
         }
 
         val mainPendingIntent: PendingIntent = PendingIntent.getActivity(
@@ -134,6 +133,7 @@ class FCMService : FirebaseMessagingService() {
                     action = "ACTION_ACCEPT_INVITATION"
                     putExtra("notificationId", notificationIdStr)
                     putExtra("senderId", data["senderId"])
+                    putExtra("patientId", data["userId"])
                     putExtra("type", type)
                 }
                 val acceptPendingIntent = PendingIntent.getBroadcast(

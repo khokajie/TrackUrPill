@@ -99,7 +99,23 @@ class NotificationFragment : Fragment() {
                 requireActivity().runOnUiThread {
                     Toast.makeText(requireContext(), "Reminder dismissed.", Toast.LENGTH_SHORT).show()
                 }
-            }
+            },
+            onAcceptInvitation = { notification ->
+                notificationVM.acceptInvitation(notification.notificationId)
+                // Cancel the system notification
+                cancelSystemNotification(notification.notificationId)
+                requireActivity().runOnUiThread {
+                    Toast.makeText(requireContext(), "Invitation Accepted.", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onRejectInvitation = { notification ->
+                notificationVM.declineInvitation(notification.notificationId)
+                // Cancel the system notification
+                cancelSystemNotification(notification.notificationId)
+                requireActivity().runOnUiThread {
+                    Toast.makeText(requireContext(), "Invitation Rejected.", Toast.LENGTH_SHORT).show()
+                }
+            },
         )
 
         binding.recyclerViewNotifications.adapter = adapter

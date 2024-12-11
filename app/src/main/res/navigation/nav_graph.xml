@@ -89,5 +89,12 @@
         android:label="Patient Details"
         tools:layout="@layout/fragment_caregiver_patient_details" />
 
+    <!-- Define Global Actions -->
+    <action
+        android:id="@+id/action_global_notificationFragment"
+        app:destination="@id/notificationFragment"
+        app:popUpTo="@id/loginFragment"
+        app:popUpToInclusive="false" />
+
 
 </navigation>

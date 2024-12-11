@@ -20,7 +20,9 @@ import java.util.*
 class NotificationAdapter(
     private val onItemClick: (Notification) -> Unit = {},
     private val onTakeClick: (Notification) -> Unit,
-    private val onDismissClick: (Notification) -> Unit
+    private val onDismissClick: (Notification) -> Unit,
+    private val onAcceptInvitation: (Notification) -> Unit,
+    private val onRejectInvitation: (Notification) -> Unit
 ) : ListAdapter<Notification, NotificationAdapter.ViewHolder>(Diff){
 
     private var allNotifications: List<Notification> = emptyList()
@@ -91,13 +93,13 @@ class NotificationAdapter(
                     // Add onClickListeners for Accept and Reject buttons
                     acceptButton.setOnClickListener {
                         // Handle accept logic
-                        //onAcceptInvitation(notification)
+                        onAcceptInvitation(notification)
                         acceptButton.visibility = View.GONE
                         rejectButton.visibility = View.GONE
                     }
                     rejectButton.setOnClickListener {
                         // Handle reject logic
-                        //onRejectInvitation(notification)
+                        onRejectInvitation(notification)
                         acceptButton.visibility = View.GONE
                         rejectButton.visibility = View.GONE
                     }

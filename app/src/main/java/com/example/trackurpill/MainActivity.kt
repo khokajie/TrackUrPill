@@ -17,37 +17,30 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Observer
+import androidx.navigation.NavController
 import androidx.navigation.NavOptions
-import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
-import com.example.trackurpill.data.MedicationLog
 import com.example.trackurpill.databinding.ActivityMainBinding
-import com.example.trackurpill.medicationManagement.data.MedicationLogViewModel
-import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
-import com.example.trackurpill.notification.data.NotificationViewModel
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import java.util.Date
-import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private val nav by lazy { supportFragmentManager.findFragmentById(R.id.host)!!.findNavController() }
+    private lateinit var nav: NavController
     private lateinit var appBarConfiguration: AppBarConfiguration
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private var pendingNotificationNavigation: Boolean = false
+
 
     private val userViewModel: LoggedInUserViewModel by viewModels()
-    private val notificationVM: NotificationViewModel by viewModels()
-    private val medicationVM: PatientMedicationViewModel by viewModels()
-    private val logVM: MedicationLogViewModel by viewModels()
 
     // Define top-level destinations
     private val patientTLD = setOf(
@@ -70,6 +63,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Initialize NavController
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.host) as NavHostFragment
+        nav = navHostFragment.navController
 
         // Handle the intent when the activity is created
         handleIntent(intent)
@@ -104,6 +101,13 @@ class MainActivity : AppCompatActivity() {
                     nav.navigate(startDestination, null, NavOptions.Builder()
                         .setPopUpTo(R.id.loginFragment, true) // Remove loginFragment from back stack
                         .build())
+
+                    // Check for pending navigation
+                    if (pendingNotificationNavigation) {
+                        nav.navigate(R.id.action_global_notificationFragment)
+                        pendingNotificationNavigation = false
+                        Log.d("MainActivity", "Navigating to NotificationFragment from pending")
+                    }
                 }
             } else {
                 if (savedInstanceState == null) {
@@ -254,7 +258,7 @@ class MainActivity : AppCompatActivity() {
                 // Show exit confirmation dialog
                 showExitConfirmationDialog()
             }
-            isTopLevelDestination(currentDestination) && currentDestination != R.id.patientMedicationFragment -> {
+            (isTopLevelDestination(currentDestination) && currentDestination != R.id.patientMedicationFragment) || currentDestination == R.id.notificationFragment || currentDestination == R.id.medicationLogFragment-> {
                 // Navigate back to patientMedicationFragment
                 nav.navigate(R.id.patientMedicationFragment, null, NavOptions.Builder()
                     .setLaunchSingleTop(true) // Avoid multiple instances
@@ -285,45 +289,38 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+
+
+    private fun handleIntent(intent: Intent) {
+        if (intent.hasExtra("fragmentToOpen")) {
+            val fragmentToOpen = intent.getStringExtra("fragmentToOpen") ?: "DefaultFragment"
+            Log.d("MainActivity", "Handling fragmentToOpen: $fragmentToOpen")
+
+            when (fragmentToOpen) {
+                "NotificationFragment" -> {
+                    if (::nav.isInitialized && nav.currentDestination != null) {
+                        nav.navigate(R.id.action_global_notificationFragment)
+                        Log.d("MainActivity", "Navigating to NotificationFragment")
+                    } else {
+                        pendingNotificationNavigation = true
+                        Log.d("MainActivity", "Pending navigation to NotificationFragment")
+                    }
+                }
+                else -> {
+                    Log.w("MainActivity", "Unknown fragmentToOpen: $fragmentToOpen")
+                }
+            }
+        }
+
+        // Handle deep links if any
+        nav.handleDeepLink(intent)
+    }
+
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent) // Update the intent
         handleIntent(intent)
     }
 
-    /**
-     * Handles incoming intents, particularly those triggered by notification taps.
-     */
-    private fun handleIntent(intent: Intent) {
-        val type = intent.getStringExtra("type") // Type of notification
-        val notificationId = intent.getStringExtra("notificationId")
-        val senderId = intent.getStringExtra("senderId")
-        val reminderId = intent.getStringExtra("reminderId")
-        val medicationId = intent.getStringExtra("medicationId")
-        val dosageStr = intent.getStringExtra("dosage") ?: "1 Tablet"
-        val message = intent.getStringExtra("message") ?: "You have a new notification."
-
-        Log.d("MainActivity", "handleIntent called with type: $type")
-
-        // Handle notification tap if needed
-        if (type == null) return
-
-        when (type) {
-            "reminder" -> {
-                // Navigate to Medication Details or relevant screen
-                // Implement navigation logic as per your app's flow
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                Log.d("MainActivity", "Reminder notification tapped: $message")
-            }
-            "invitation" -> {
-                // Navigate to Invitation screen or relevant action
-                // Implement navigation logic as per your app's flow
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                Log.d("MainActivity", "Invitation notification tapped: $message")
-            }
-            else -> {
-                Toast.makeText(this, "Unknown notification type.", Toast.LENGTH_SHORT).show()
-                Log.e("MainActivity", "Unknown notification type: $type")
-            }
-        }
-    }
 }

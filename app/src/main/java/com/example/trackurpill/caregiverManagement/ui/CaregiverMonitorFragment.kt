@@ -69,13 +69,17 @@ class CaregiverMonitorFragment : Fragment() {
                     return@setOnClickListener
                 }
 
-                // Call the Cloud Function
-                sendPatientInvitation(email, caregiverId) { success, message ->
-                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                patientViewModel.sendPatientInvitation(email, caregiverId) { success, message ->
                     if (success) {
+                        // Handle success (e.g., notify the user, update UI)
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         dialog.dismiss()
+                    } else {
+                        // Handle failure (e.g., show error message)
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                     }
                 }
+
             }
 
             dialog.show()
@@ -91,40 +95,5 @@ class CaregiverMonitorFragment : Fragment() {
         return binding.root
     }
 
-    /**
-     * Calls the sendPatientInvitation Cloud Function.
-     */
-    private fun sendPatientInvitation(email: String, caregiverId: String, callback: (Boolean, String) -> Unit) {
-        val data = hashMapOf(
-            "patientEmail" to email,
-            "caregiverId" to caregiverId
-        )
 
-        functions
-            .getHttpsCallable("sendPatientInvitation")
-            .call(data)
-            .continueWith { task ->
-                // This continuation runs on the main thread
-                val result = task.result?.data as? Map<*, *>
-                result
-            }
-            .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    val e = task.exception
-                    if (e is FirebaseFunctionsException) {
-                        val code = e.code
-                        val details = e.details
-                        callback(false, "Error: ${e.message}")
-                    } else {
-                        callback(false, "Error: ${e?.message}")
-                    }
-                } else {
-                    val result = task.result
-                    val success = result?.get("success") as? Boolean ?: false
-                    val message = result?.get("message") as? String ?: "Unknown response."
-
-                    callback(success, message)
-                }
-            }
-    }
 }

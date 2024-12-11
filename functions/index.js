@@ -118,7 +118,10 @@ function calculateNextReminderTime(reminder, userTimeZone) {
         millisecond: 0,
       });
 
-      console.log("Daily reminder time before adjustment:", reminderTime.format());
+      console.log(
+        "Daily reminder time before adjustment:",
+        reminderTime.format(),
+      );
 
       if (reminderTime.isBefore(now)) {
         reminderTime.add(1, "day");
@@ -151,15 +154,12 @@ function calculateNextReminderTime(reminder, userTimeZone) {
 
       const now = moment().tz(userTimeZone);
       const dayIndex = VALID_DAYS.indexOf(reminder.day);
-      const reminderTime = now
-        .clone()
-        .day(dayIndex)
-        .set({
-          hour: hour,
-          minute: minute,
-          second: 0,
-          millisecond: 0,
-        });
+      const reminderTime = now.clone().day(dayIndex).set({
+        hour: hour,
+        minute: minute,
+        second: 0,
+        millisecond: 0,
+      });
 
       console.log(
         "Weekly reminder time before adjustment:",
@@ -390,7 +390,10 @@ exports.processScheduledReminders = functions.pubsub
   .schedule("every 1 minutes")
   .onRun(async () => {
     const now = admin.firestore.Timestamp.now();
-    console.log("Processing scheduled reminders at:", now.toDate().toISOString());
+    console.log(
+      "Processing scheduled reminders at:",
+      now.toDate().toISOString(),
+    );
 
     try {
       const querySnapshot = await admin
@@ -452,14 +455,19 @@ exports.processScheduledReminders = functions.pubsub
           // Ensure all data fields are strings
           const dosage = reminder.dosage || "1 Tablet"; // Default dosage if not specified
 
+          // Define title and body based on reminder type
+          const title = "Medication Reminder";
+          const body = `It's time to take your ${reminder.medicationName}: ${dosage}`;
+
           const dataPayload = {
             type: "reminder", // Specify the type
-            reminderId: String(reminder.reminderId),
+            reminderId: String(reminderId),
             medicationId: String(reminder.medicationId),
             medicationName: String(reminder.medicationName),
             dosage: dosage.toString(), // Convert to string for FCM
             userId: String(reminder.userId),
-            notificationId: reminderId, // Use reminderId as notificationId
+            title: title,
+            body: body,
           };
 
           // Create a unique notificationId
@@ -471,9 +479,16 @@ exports.processScheduledReminders = functions.pubsub
           // Add notificationId to dataPayload
           dataPayload.notificationId = notificationId;
 
+          // Define notification payload
+          const notificationPayload = {
+            title: title,
+            body: body,
+          };
+
           // Send data-only FCM message
           const messagingResponse = await admin.messaging().send({
             data: dataPayload, // All values are strings
+            notification: notificationPayload,
             android: {
               priority: "high",
               notification: {
@@ -487,7 +502,10 @@ exports.processScheduledReminders = functions.pubsub
           console.log(
             `Notification sent for reminder ${reminderId} with Notification ID: ${notificationId}`,
           );
-          console.log(`FCM Response for reminder ${reminderId}:`, messagingResponse);
+          console.log(
+            `FCM Response for reminder ${reminderId}:`,
+            messagingResponse,
+          );
 
           // Create notification record
           const notificationRef = admin
@@ -520,8 +538,12 @@ exports.processScheduledReminders = functions.pubsub
             ]);
             console.log(`Reminder ${reminderId} marked as completed.`);
           } else {
-            const nextTime = calculateNextReminderTime(reminder, reminder.userTimeZone);
-            const nextTimestamp = admin.firestore.Timestamp.fromMillis(nextTime);
+            const nextTime = calculateNextReminderTime(
+              reminder,
+              reminder.userTimeZone,
+            );
+            const nextTimestamp =
+              admin.firestore.Timestamp.fromMillis(nextTime);
 
             await Promise.all([
               reminderDoc.ref.update({
@@ -642,147 +664,152 @@ exports.cancelReminder = functions.https.onCall(async (data, context) => {
  * @param {object} context - Authentication context.
  * @returns {object} - Success or error message.
  */
-exports.sendPatientInvitation = functions.https.onCall(async (data, context) => {
-  try {
-    // Authentication check
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "User must be authenticated.",
-      );
-    }
+exports.sendPatientInvitation = functions.https.onCall(
+  async (data, context) => {
+    try {
+      // Authentication check
+      if (!context.auth) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          "User must be authenticated.",
+        );
+      }
 
-    const { patientEmail, caregiverId } = data;
+      const { patientEmail, caregiverId } = data;
 
-    // Validate input
-    if (!patientEmail || typeof patientEmail !== "string") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Valid patientEmail is required.",
-      );
-    }
+      // Validate input
+      if (!patientEmail || typeof patientEmail !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Valid patientEmail is required.",
+        );
+      }
 
-    if (!caregiverId || typeof caregiverId !== "string") {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Valid caregiverId is required.",
-      );
-    }
+      if (!caregiverId || typeof caregiverId !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Valid caregiverId is required.",
+        );
+      }
 
-    // Find patient by email
-    const patientQuerySnapshot = await admin
-      .firestore()
-      .collection("Patient")
-      .where("userEmail", "==", patientEmail)
-      .get();
+      // Find patient by email
+      const patientQuerySnapshot = await admin
+        .firestore()
+        .collection("Patient")
+        .where("userEmail", "==", patientEmail)
+        .get();
 
-    if (patientQuerySnapshot.empty) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        "No patient found with the provided email.",
-      );
-    }
+      if (patientQuerySnapshot.empty) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "No patient found with the provided email.",
+        );
+      }
 
-    const patientDoc = patientQuerySnapshot.docs[0];
-    const patientId = patientDoc.id;
-    const fcmToken = patientDoc.data().fcmToken;
+      const patientDoc = patientQuerySnapshot.docs[0];
+      const patientId = patientDoc.id;
+      const fcmToken = patientDoc.data().fcmToken;
 
-    if (!fcmToken) {
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Patient does not have a valid FCM token.",
-      );
-    }
+      if (!fcmToken) {
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "Patient does not have a valid FCM token.",
+        );
+      }
 
-    // Fetch caregiver's username using caregiverId
-    const caregiverDoc = await admin
-      .firestore()
-      .collection("Caregiver")
-      .doc(caregiverId)
-      .get();
+      // Fetch caregiver's username using caregiverId
+      const caregiverDoc = await admin
+        .firestore()
+        .collection("Caregiver")
+        .doc(caregiverId)
+        .get();
 
-    if (!caregiverDoc.exists) {
-      throw new functions.https.HttpsError(
-        "not-found",
-        "No caregiver found with the provided caregiverId.",
-      );
-    }
+      if (!caregiverDoc.exists) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "No caregiver found with the provided caregiverId.",
+        );
+      }
 
-    const caregiverData = caregiverDoc.data();
-    const caregiverUsername = caregiverData.userName || "Caregiver";
+      const caregiverData = caregiverDoc.data();
+      const caregiverUsername = caregiverData.userName || "Caregiver";
 
-    // Create a unique notificationId (document ID)
-    const notificationDocRef = admin
-      .firestore()
-      .collection("Notification")
-      .doc();
-    const notificationId = notificationDocRef.id;
+      // Create a unique notificationId (document ID)
+      const notificationDocRef = admin
+        .firestore()
+        .collection("Notification")
+        .doc();
+      const notificationId = notificationDocRef.id;
 
-    const notificationData = {
-      userId: patientId,
-      senderId: caregiverId,
-      message: `A caregiver (${caregiverUsername}) wants to help you to monitor your medication adherence. 
+      const notificationData = {
+        userId: patientId,
+        senderId: caregiverId,
+        message: `A caregiver (${caregiverUsername}) wants to help you to monitor your medication adherence. 
 Check your app to accept the invitation.`,
-      type: "invitation",
-      status: "Sent",
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      timestamp: admin.firestore.Timestamp.now(),
-    };
+        type: "invitation",
+        status: "Sent",
+        timestamp: admin.firestore.Timestamp.now(),
+      };
 
-    // Prepare dataPayload without notificationId
-    const dataPayload = {
-      type: "invitation", // Specify the type
-      userId: patientId,
-      senderId: caregiverId,
-      message: notificationData.message,
-      receivedAt: admin.firestore.FieldValue.serverTimestamp(), // Add received timestamp
-      notificationId: notificationId, // Include notificationId for actions
-    };
+      // Define title and body based on invitation
+      const title = "Caregiver Invitation";
+      const body = `A caregiver (${caregiverUsername}) wants to help you to monitor your 
+medication adherence. Check your app to accept the invitation.`;
 
-    // Prepare FCM message with dataPayload only
-    const message = {
-      token: fcmToken,
-      data: {
-        type: dataPayload.type, // Specify the type
-        notificationId: notificationId, // Use document ID as notificationId
-        senderId: dataPayload.senderId,
-        userId: dataPayload.userId,
-        message: dataPayload.message,
-        receivedAt: new Date().toISOString(), // Convert timestamp to ISO string
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "invitation_notifications",
+      // Define notification payload
+      const notificationPayload = {
+        title: title,
+        body: body,
+      };
+
+      // Prepare dataPayload without notificationId
+      const dataPayload = {
+        type: "invitation", // Specify the type
+        userId: patientId,
+        senderId: caregiverId,
+        notificationId: notificationId,
+        title: title,
+        body: body,
+      };
+
+      // Prepare FCM message with dataPayload only
+      const message = {
+        token: fcmToken,
+        data: dataPayload,
+        notification: notificationPayload,
+        android: {
           priority: "high",
+          notification: {
+            channelId: "invitation_notifications",
+            priority: "high",
+          },
         },
-      },
-    };
+      };
 
-    // Send FCM notification using send() instead of sendToDevice()
-    const response = await admin.messaging().send(message);
-    console.log(`FCM Response: ${response}`);
+      // Send FCM notification using send() instead of sendToDevice()
+      const response = await admin.messaging().send(message);
+      console.log(`FCM Response: ${response}`);
 
-    // Update the Notification document with FCM response and receivedAt timestamp
-    await notificationDocRef.set(
-      {
-        ...notificationData,
-        fcmResponse: response,
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+      // Update the Notification document with FCM response and receivedAt timestamp
+      await notificationDocRef.set(
+        {
+          ...notificationData,
+          fcmResponse: response,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
 
-    return { success: true, message: "Invitation sent successfully." };
-  } catch (error) {
-    console.error("Error sending patient invitation:", error);
-    if (error instanceof functions.https.HttpsError) {
-      throw error;
+      return { success: true, message: "Invitation sent successfully." };
+    } catch (error) {
+      console.error("Error sending patient invitation:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        "internal",
+        error.message || "An unknown error occurred.",
+      );
     }
-    throw new functions.https.HttpsError(
-      "internal",
-      error.message || "An unknown error occurred.",
-    );
-  }
-});
+  },
+);

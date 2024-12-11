@@ -59,7 +59,7 @@ dependencies {
     //firebase
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-analytics")
-    implementation ("com.google.firebase:firebase-messaging-ktx")
+    implementation ("com.google.firebase:firebase-messaging-ktx:23.0.0")
     implementation ("com.google.firebase:firebase-functions-ktx")
 
     //glide for show the image
@@ -73,7 +73,7 @@ dependencies {
     //for the OCR model
     implementation ("com.google.mlkit:text-recognition:16.0.0-beta5")
 
-// Retrofit
+    // Retrofit
     implementation ("com.squareup.retrofit2:retrofit:2.9.0")
     implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
     // Coroutines

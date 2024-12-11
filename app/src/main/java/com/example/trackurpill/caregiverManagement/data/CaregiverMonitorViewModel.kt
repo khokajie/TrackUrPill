@@ -1,21 +1,24 @@
 package com.example.trackurpill.caregiverManagement.data
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
 import com.example.trackurpill.data.CAREGIVER
-import com.example.trackurpill.data.Medication
-import com.example.trackurpill.data.NOTIFICATION
-import com.example.trackurpill.data.Notification
 import com.example.trackurpill.data.PATIENT
 import com.example.trackurpill.data.Patient
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.toObject
 import com.google.firebase.firestore.toObjects
-import java.util.Date
-import java.util.UUID
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -23,6 +26,7 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val patientLD = MutableLiveData<List<Patient>>(emptyList())
     private val resultLD = MutableLiveData<List<Patient>>()
     private var listener: ListenerRegistration? = null
+    private val functions: FirebaseFunctions = Firebase.functions
 
     // Filters and Sorting
     private var name = ""
@@ -136,89 +140,90 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
         resultLD.value = list
     }
 
+
     fun sendPatientInvitation(
         email: String,
         caregiverId: String,
-        callback: (String) -> Unit
+        callback: (Boolean, String) -> Unit
     ) {
-        val trimmedEmail = email.trim()
-        println("Searching for email: $trimmedEmail")
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val trimmedEmail = email.trim()
+                Log.d("CaregiverMonitorViewModel", "Searching for email: $trimmedEmail")
 
-        // Fetch caregiver's details
-        CAREGIVER.document(caregiverId)
-            .get()
-            .addOnSuccessListener { caregiverDoc ->
+                val caregiverDoc = CAREGIVER.document(caregiverId).get().await()
                 if (!caregiverDoc.exists()) {
-                    callback("Caregiver not found")
-                    return@addOnSuccessListener
+                    Log.e("CaregiverMonitorViewModel", "Caregiver with ID $caregiverId does not exist.")
+                    withContext(Dispatchers.Main) {
+                        callback(false, "Caregiver not found.")
+                    }
+                    return@launch
                 }
 
-                val caregiverName = caregiverDoc.getString("userName") ?: "Unknown Caregiver"
                 val currentPatientIds = caregiverDoc.get("patientList") as? List<String> ?: emptyList()
 
-                // Search for the patient by email
-                PATIENT.whereEqualTo("userEmail", trimmedEmail)
-                    .get()
-                    .addOnSuccessListener { documents ->
-                        if (documents.isEmpty) {
-                            println("User email not found")
-                            callback("Email not found")
-                        } else {
-                            val patientDocument = documents.documents[0]
-                            val patientId = patientDocument.id
-
-                            // Check if the patient is already in the caregiver's patientList
-                            if (currentPatientIds.contains(patientId)) {
-                                println("User is already in the patient list")
-                                callback("User is already in your patient list")
-                            } else {
-                                println("User email found: ${patientDocument.getString("userEmail")}")
-
-                                // Create a notification for the patient
-                                createNotificationForPatient(
-                                    patientId,
-                                    "You have been invited by $caregiverName to connect as a caregiver.",
-                                    caregiverId
-                                ) { notificationStatus ->
-                                    callback(notificationStatus)
-                                }
-                            }
-                        }
+                val patientQuery = PATIENT.whereEqualTo("userEmail", trimmedEmail).get().await()
+                if (patientQuery.isEmpty) {
+                    Log.e("CaregiverMonitorViewModel", "Patient with email $trimmedEmail not found.")
+                    withContext(Dispatchers.Main) {
+                        callback(false, "Email not found.")
                     }
-                    .addOnFailureListener { e ->
-                        println("Error occurred while querying: ${e.message}")
-                        callback("Failed to query email: ${e.message}")
+                    return@launch
+                }
+
+                val patientDoc = patientQuery.documents[0]
+                val patientId = patientDoc.id
+
+                if (currentPatientIds.contains(patientId)) {
+                    Log.e("CaregiverMonitorViewModel", "Patient ID $patientId is already in caregiver's patient list.")
+                    withContext(Dispatchers.Main) {
+                        callback(false, "User is already in your patient list.")
                     }
+                    return@launch
+                }
+
+                Log.d("CaregiverMonitorViewModel", "Patient email found: ${patientDoc.getString("userEmail")} (ID: $patientId)")
+
+                // 4. Call Cloud Function to Send Invitation
+                val data = hashMapOf(
+                    "patientEmail" to trimmedEmail,
+                    "caregiverId" to caregiverId
+                )
+
+                val functionResult = functions
+                    .getHttpsCallable("sendPatientInvitation")
+                    .call(data)
+                    .await()
+
+                val resultData = functionResult.data as? Map<*, *> ?: emptyMap<Any, Any>()
+
+                val success = resultData["success"] as? Boolean ?: false
+                val message = resultData["message"] as? String ?: "Unknown response."
+
+                if (success) {
+                    Log.d("CaregiverMonitorViewModel", "Invitation sent successfully: $message")
+                    withContext(Dispatchers.Main) {
+                        callback(true, "Invitation sent successfully.")
+                    }
+                } else {
+                    Log.e("CaregiverMonitorViewModel", "Failed to send invitation: $message")
+                    withContext(Dispatchers.Main) {
+                        callback(false, "Failed to send invitation: $message")
+                    }
+                }
+
+            } catch (e: FirebaseFunctionsException) {
+                Log.e("CaregiverMonitorViewModel", "FirebaseFunctionsException: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    callback(false, "Function error: ${e.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("CaregiverMonitorViewModel", "Exception: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    callback(false, "An unexpected error occurred: ${e.message}")
+                }
             }
-            .addOnFailureListener { e ->
-                println("Error fetching caregiver details: ${e.message}")
-                callback("Failed to fetch caregiver details: ${e.message}")
-            }
+        }
     }
 
-    private fun createNotificationForPatient(
-        userId: String,
-        message: String,
-        caregiverId: String,
-        callback: (String) -> Unit
-    ) {
-        val notification = Notification(
-            notificationId = UUID.randomUUID().toString(),
-            message = message,
-            timestamp = Date(),
-            type = "invitation",
-            userId = userId,
-            status = "Pending",
-            senderId = caregiverId // Include caregiverId for tracking
-        )
-
-        NOTIFICATION.document(notification.notificationId)
-            .set(notification)
-            .addOnSuccessListener {
-                callback("Invitation sent successfully")
-            }
-            .addOnFailureListener { e ->
-                callback("Failed to send invitation: ${e.message}")
-            }
-    }
 }

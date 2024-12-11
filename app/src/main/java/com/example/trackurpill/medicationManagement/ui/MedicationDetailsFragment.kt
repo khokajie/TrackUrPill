@@ -61,10 +61,10 @@ class MedicationDetailsFragment : Fragment() {
     private fun setupUI() {
         val adapter = ReminderAdapter(
             onDelete = { reminder ->
-                reminderVM.deleteReminder(reminder.reminderId)
                 cancelReminder(reminder.reminderId,
                     onSuccess = {
                         Toast.makeText(requireContext(), "Reminder canceled successfully", Toast.LENGTH_SHORT).show()
+                        reminderVM.deleteReminder(reminder.reminderId)
                     },
                     onError = { e ->
                         Toast.makeText(requireContext(), "Failed to cancel reminder: ${e.message}", Toast.LENGTH_SHORT).show()

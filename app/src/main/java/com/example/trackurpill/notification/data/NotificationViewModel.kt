@@ -148,4 +148,63 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    /**
+     * Dismisses a reminder by updating the Notification's status to 'dismissed'.
+     */
+    fun acceptInvitation(notificationId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Fetch the Notification document
+                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
+                if (!notificationSnapshot.exists()) {
+                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                }
+
+                val notification = notificationSnapshot.toObject(Notification::class.java)
+                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
+
+                // Update status to 'dismissed'
+                val updatedNotification = notification.copy(
+                    status = "Accepted",
+                )
+
+                // Update the Notification document
+                setNotification(updatedNotification)
+
+            } catch (e: FirebaseFirestoreException) {
+                Log.e("NotificationVM", "Error dismissing reminder: ", e)
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Unexpected error: ", e)
+            }
+        }
+    }
+
+    fun declineInvitation(notificationId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Fetch the Notification document
+                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
+                if (!notificationSnapshot.exists()) {
+                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                }
+
+                val notification = notificationSnapshot.toObject(Notification::class.java)
+                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
+
+                // Update status to 'dismissed'
+                val updatedNotification = notification.copy(
+                    status = "Declined",
+                )
+
+                // Update the Notification document
+                setNotification(updatedNotification)
+
+            } catch (e: FirebaseFirestoreException) {
+                Log.e("NotificationVM", "Error dismissing reminder: ", e)
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Unexpected error: ", e)
+            }
+        }
+    }
 }
