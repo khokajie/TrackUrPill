@@ -6,9 +6,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.NOTIFICATION
 import com.example.trackurpill.data.Notification
+import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.ktx.toObjects
+import com.google.firebase.firestore.toObjects
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.functions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,12 +21,12 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
 
     private val notificationsLD = MutableLiveData<List<Notification>>(emptyList())
     private var listener: ListenerRegistration? = null
+    private val functions: FirebaseFunctions by lazy { Firebase.functions }
 
     // Filters and Sorting
     private val resultLD = MutableLiveData<List<Notification>>()
-    private var userIdFilter = ""
-    private var field = ""
-    private var reverse = false
+    private var field = "date"
+    private var reverse = true
 
     init {
         listener = NOTIFICATION.addSnapshotListener { snap, _ ->
@@ -40,28 +43,16 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
 
     // Access LiveData
     fun getNotificationsLD() = notificationsLD
-    fun getResultLD() = resultLD
 
     // Get all notifications
     fun getAllNotifications() = notificationsLD.value ?: emptyList()
 
-    // Get notifications for a specific user
-    fun getNotificationsByUser(userId: String) = getAllNotifications().filter { it.userId == userId }
+    fun getSortedNotificationsLD() = resultLD
+
 
     // Add a notification
     fun setNotification(notification: Notification) {
         NOTIFICATION.document(notification.notificationId).set(notification)
-    }
-
-    // Delete a notification
-    fun deleteNotification(notificationId: String) {
-        NOTIFICATION.document(notificationId).delete()
-    }
-
-    // Filter and Sort Operations
-    fun filterByUser(userId: String) {
-        this.userIdFilter = userId
-        updateResult()
     }
 
     fun sort(field: String, reverse: Boolean) {
@@ -73,14 +64,9 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
     private fun updateResult() {
         var list = getAllNotifications()
 
-        // Filter by userId
-        list = list.filter {
-            it.userId == userIdFilter || userIdFilter.isEmpty()
-        }
-
         // Sort by field
         list = when (field) {
-            "message" -> list.sortedBy { it.message }
+            "date" -> list.sortedBy { it.timestamp }
             else -> list
         }
 
@@ -90,9 +76,7 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
         resultLD.value = list
     }
 
-    /**
-     * Dismisses a reminder by updating the Notification's status to 'dismissed'.
-     */
+
     fun dismissReminder(notificationId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -149,62 +133,42 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Dismisses a reminder by updating the Notification's status to 'dismissed'.
-     */
-    fun acceptInvitation(notificationId: String) {
+    fun respondToInvitation(notificationId: String, caregiverId: String, response: String, callback: (Boolean, String) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Fetch the Notification document
-                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
-                if (!notificationSnapshot.exists()) {
-                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
-                }
-
-                val notification = notificationSnapshot.toObject(Notification::class.java)
-                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
-
-                // Update status to 'dismissed'
-                val updatedNotification = notification.copy(
-                    status = "Accepted",
+                // Prepare data to send to the Cloud Function
+                val data = hashMapOf(
+                    "caregiverId" to caregiverId,
+                    "response" to response,
+                    "notificationId" to notificationId
                 )
 
-                // Update the Notification document
-                setNotification(updatedNotification)
+                // Call the 'responseInvitation' Cloud Function
+                val result = functions
+                    .getHttpsCallable("responseInvitation")
+                    .call(data)
+                    .await()
 
-            } catch (e: FirebaseFirestoreException) {
-                Log.e("NotificationVM", "Error dismissing reminder: ", e)
+                // Parse the response
+                val resultData = result.data as? Map<*, *> ?: emptyMap<Any, Any>()
+                val success = resultData["success"] as? Boolean ?: false
+                val message = resultData["message"] as? String ?: "No message provided."
+
+                // Invoke callback with the result
+                callback(success, message)
+
             } catch (e: Exception) {
-                Log.e("NotificationVM", "Unexpected error: ", e)
+                Log.e("NotificationViewModel", "Error responding to invitation:", e)
+                callback(false, e.message ?: "An unknown error occurred.")
             }
         }
     }
 
-    fun declineInvitation(notificationId: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // Fetch the Notification document
-                val notificationSnapshot = NOTIFICATION.document(notificationId).get().await()
-                if (!notificationSnapshot.exists()) {
-                    throw FirebaseFirestoreException("Notification not found.", FirebaseFirestoreException.Code.NOT_FOUND)
-                }
+    fun acceptInvitation(notificationId: String, caregiverId: String, callback: (Boolean, String) -> Unit) {
+        respondToInvitation(notificationId, caregiverId, "accept", callback)
+    }
 
-                val notification = notificationSnapshot.toObject(Notification::class.java)
-                    ?: throw FirebaseFirestoreException("Failed to parse Notification.", FirebaseFirestoreException.Code.UNKNOWN)
-
-                // Update status to 'dismissed'
-                val updatedNotification = notification.copy(
-                    status = "Declined",
-                )
-
-                // Update the Notification document
-                setNotification(updatedNotification)
-
-            } catch (e: FirebaseFirestoreException) {
-                Log.e("NotificationVM", "Error dismissing reminder: ", e)
-            } catch (e: Exception) {
-                Log.e("NotificationVM", "Unexpected error: ", e)
-            }
-        }
+    fun declineInvitation(notificationId: String, caregiverId: String, callback: (Boolean, String) -> Unit) {
+        respondToInvitation(notificationId, caregiverId, "decline", callback)
     }
 }

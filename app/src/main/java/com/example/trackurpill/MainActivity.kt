@@ -71,7 +71,6 @@ class MainActivity : AppCompatActivity() {
         // Handle the intent when the activity is created
         handleIntent(intent)
 
-        createNotificationChannel()
         checkAndRequestNotificationPermission()
 
         // Set up the action bar
@@ -183,22 +182,6 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.show()
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelId = "medication_reminders"
-            val channelName = "Medication Reminders"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(channelId, channelName, importance).apply {
-                description = "Notifications for medication reminders"
-            }
-
-            // Register the channel with the system
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Log.d("MainActivity", "Notification channel created: $channelId")
-        }
-    }
 
     private fun checkAndRequestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

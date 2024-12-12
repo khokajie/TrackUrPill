@@ -58,11 +58,8 @@ class ReminderViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun scheduleReminder(reminder: Reminder, userTimeZone: String) {
         try {
-            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
-                timeZone = TimeZone.getTimeZone(userTimeZone)
-            }
 
-            val formattedDate = reminder.date?.let { dateFormatter.format(it) }
+            val formattedDate = reminder.date
 
             val reminderMap = mutableMapOf(
                 "reminderId" to reminder.reminderId,

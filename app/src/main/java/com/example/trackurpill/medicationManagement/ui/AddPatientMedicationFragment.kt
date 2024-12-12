@@ -23,10 +23,9 @@ import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.trackurpill.R
-import com.example.trackurpill.api.DetailedHealthInfo
+import com.example.trackurpill.api.*
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
 import com.example.trackurpill.medicationManagement.data.AdverseEventViewModel
@@ -38,12 +37,15 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import com.example.trackurpill.api.data.GeminiRequest
+import com.example.trackurpill.api.data.Content
+import com.example.trackurpill.api.data.Part
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.lifecycle.Observer
 
 class AddPatientMedicationFragment : Fragment() {
 
@@ -51,6 +53,7 @@ class AddPatientMedicationFragment : Fragment() {
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
     private val notificationVM: NotificationViewModel by activityViewModels()
     private val adverseEventVM: AdverseEventViewModel by viewModels()
+    private val geminiViewModel: GeminiViewModel by viewModels()
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
     private var patientId: String? = null // To distinguish between caregiver and patient views
@@ -121,8 +124,44 @@ class AddPatientMedicationFragment : Fragment() {
             // Save medication
             medicationVM.setMedication(medication)
 
+            // Retrieve all medications for the user including the newly added one
+            val allMedications = medicationVM.getAllByUser(targetUserId.toString()).toMutableList().apply {
+                add(
+                    Medication(
+                        medicationId = medication.medicationId,
+                        medicationName = medication.medicationName,
+                        dosage = medication.dosage,
+                        expirationDate = medication.expirationDate,
+                        stockLevel = medication.stockLevel,
+                        instruction = medication.instruction,
+                        userId = medication.userId
+                    )
+                )
+            }
+
+            // 1. Construct the Prompt
+            val medicationNames = allMedications.joinToString(", ") { it.medicationName }
+            val promptText = "Check the interactions between the following medications: $medicationNames."
+
+            // 2. Create Parts with the Prompt
+            val partsList = listOf(
+                Part(text = promptText)
+            )
+
+            // 3. Wrap Parts into Content
+            val contentsList = listOf(
+                Content(parts = partsList)
+            )
+
+            // 4. Prepare GeminiRequest with List<Content>
+            val geminiRequest = GeminiRequest(contents = contentsList)
+
+
+            // Initiate API call
+            geminiViewModel.generateContent(geminiRequest, "AIzaSyC_5oXR_z3oL2AxPhmS6dwIFDYv-2WdZOU")
+
             // Show loading dialog
-            loadingDialog = AlertDialog.Builder(requireContext())
+            /*loadingDialog = AlertDialog.Builder(requireContext())
                 .setTitle("Checking Drug Safety")
                 .setMessage("Loading...")
                 .setCancelable(false)
@@ -132,14 +171,67 @@ class AddPatientMedicationFragment : Fragment() {
             // Launch a coroutine to fetch data and show the dialog
             viewLifecycleOwner.lifecycleScope.launch {
                 showAdverseEventDialog()
-            }
+            }*/
 
+            // Observe ViewModel LiveData
+            observeViewModel()
         }
 
         return binding.root
     }
 
-    private suspend fun showAdverseEventDialog() {
+
+
+    private fun observeViewModel() {
+        geminiViewModel.geminiResponse.observe(viewLifecycleOwner) { response ->
+            // Hide loading indicator
+            //binding.progressBar.visibility = View.GONE
+
+            if (response != null && response.candidates.isNotEmpty()) {
+                val generatedText = response.candidates.joinToString(separator = "\n") { candidate ->
+                    candidate.content.parts.joinToString(separator = " ") { it.text }
+                }
+                // Handle the generated text as needed
+                showGeneratedContent(generatedText)
+
+                // Inform the user
+                Toast.makeText(requireContext(), "Content Generated Successfully!", Toast.LENGTH_SHORT).show()
+            } else if (response != null) {
+                Toast.makeText(requireContext(), "No content generated.", Toast.LENGTH_SHORT).show()
+                nav.navigateUp()
+            } else {
+                Toast.makeText(requireContext(), "Failed to generate content", Toast.LENGTH_SHORT).show()
+                nav.navigateUp()
+            }
+        }
+
+        geminiViewModel.error.observe(viewLifecycleOwner) { errorMsg ->
+            // Hide loading indicator
+            //binding.progressBar.visibility = View.GONE
+
+            errorMsg?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                nav.navigateUp()
+            }
+        }
+    }
+
+
+    private fun showGeneratedContent(content: String) {
+        // Implement how you want to display the generated content
+        // For example, show in a dialog or populate a TextView
+        AlertDialog.Builder(requireContext())
+            .setTitle("Generated Content")
+            .setMessage(content)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+                nav.navigateUp()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    /*private suspend fun showAdverseEventDialog() {
         try {
             val medicationName = binding.txtMedicationName.text.toString().trim().uppercase(Locale.getDefault())
             val info = adverseEventVM.getHealthInfo(medicationName)
@@ -244,7 +336,7 @@ class AddPatientMedicationFragment : Fragment() {
             "low" -> Pair(R.drawable.ic_warning, R.color.severityLow)
             else -> Pair(R.drawable.ic_warning, R.color.severityUnknown)
         }
-    }
+    }*/
 
     override fun onDestroyView() {
         loadingDialog?.dismiss()

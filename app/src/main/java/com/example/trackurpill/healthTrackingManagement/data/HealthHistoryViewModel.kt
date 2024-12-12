@@ -14,9 +14,8 @@ class HealthHistoryViewModel(app: Application) : AndroidViewModel(app) {
 
     // Filters and Sorting
     private val resultLD = MutableLiveData<List<HealthRecord>>()
-    private var userId = ""
-    private var field = ""
-    private var reverse = false
+    private var field = "recordDateTime"
+    private var reverse = true
 
     init {
         listener = HEALTH_RECORD.addSnapshotListener { snap, _ ->
@@ -41,41 +40,14 @@ class HealthHistoryViewModel(app: Application) : AndroidViewModel(app) {
     // Get a health record by its ID
     fun get(id: String) = getAll().find { it.recordId == id }
 
-    // Get health records for a specific user
-    fun getAllByUser(userId: String) = getAll().filter { it.userId == userId }
-
-    // Get the latest health record entry
-    fun getLatestHealthRecord(): HealthRecord? {
-        return healthRecordsLD.value?.lastOrNull()
-    }
-
     // Add or update a health record
     fun setHealthRecord(healthRecord: HealthRecord) {
         HEALTH_RECORD.document(healthRecord.recordId).set(healthRecord)
     }
 
-    // Delete a health record
-    fun deleteHealthRecord(recordId: String) {
-        HEALTH_RECORD.document(recordId).delete()
-    }
-
-    // Filter and Sort Operations
-    fun filterByUser(userId: String) {
-        this.userId = userId
-        updateResult()
-    }
-
-    fun sort(field: String, reverse: Boolean) {
-        this.field = field
-        this.reverse = reverse
-        updateResult()
-    }
 
     private fun updateResult() {
         var list = getAll()
-
-        // Filter by userId
-        list = list.filter { it.userId == userId || userId.isEmpty() }
 
         // Sort by field
         list = when (field) {

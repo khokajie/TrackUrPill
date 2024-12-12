@@ -9,6 +9,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.R
 import com.example.trackurpill.data.MedicationLog
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MedicationLogAdapter :
     ListAdapter<MedicationLog, MedicationLogAdapter.MedicationLogViewHolder>(DiffCallback()) {
@@ -32,7 +34,9 @@ class MedicationLogAdapter :
         fun bind(log: MedicationLog) {
             medicationName.text = log.medicationName
             medicationDosage.text = "Dosage: ${log.dosage}"
-            medicationDateTime.text = "Date: ${log.takenDate}"
+            medicationDateTime.text = "Date: ${
+                SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
+                .format(log.takenDate!!)}"
         }
     }
 

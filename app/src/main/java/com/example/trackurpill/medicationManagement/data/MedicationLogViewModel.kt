@@ -14,9 +14,8 @@ class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
 
     // Filters and Sorting
     private val resultLD = MutableLiveData<List<MedicationLog>>()
-    private var userIdFilter = ""
-    private var field = ""
-    private var reverse = false
+    private var field = "date"
+    private var reverse = true
 
     init {
         listener = MEDICATION_LOG.addSnapshotListener { snap, _ ->
@@ -38,10 +37,6 @@ class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
     // Get all logs
     fun getAllLogs() = medicationLogLD.value ?: emptyList()
 
-    // Get logs for a specific user
-    fun getLogsByUser(userId: String) = getAllLogs().filter { it.userId == userId }
-
-
     // Add a medication log entry
     fun setLog(medicationLog: MedicationLog) {
         MEDICATION_LOG.document(medicationLog.logId).set(medicationLog)
@@ -52,12 +47,6 @@ class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
         MEDICATION_LOG.document(logId).delete()
     }
 
-    // Filter and Sort Operations
-    fun filterByUser(userId: String) {
-        this.userIdFilter = userId
-        updateResult()
-    }
-
     fun sort(field: String, reverse: Boolean) {
         this.field = field
         this.reverse = reverse
@@ -66,11 +55,6 @@ class MedicationLogViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun updateResult() {
         var list = getAllLogs()
-
-        // Filter by userId
-        list = list.filter {
-            it.userId == userIdFilter || userIdFilter.isEmpty()
-        }
 
         // Sort by field
         list = when (field) {

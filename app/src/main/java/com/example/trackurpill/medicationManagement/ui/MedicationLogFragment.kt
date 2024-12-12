@@ -38,7 +38,7 @@ class MedicationLogFragment : Fragment() {
         binding.recyclerViewMedicationLog.adapter = adapter
         binding.recyclerViewMedicationLog.layoutManager = LinearLayoutManager(requireContext())
 
-        medicationLogVM.getMedicationLogLD().observe(viewLifecycleOwner) { logs ->
+        medicationLogVM.getResultLD().observe(viewLifecycleOwner) { logs ->
             val filteredLog = logs?.filter {it.userId == targetUserId } ?: emptyList()
             adapter.submitList(filteredLog)
         }

@@ -12,6 +12,8 @@
             true
         </item>
 
+        <item name="android:fitsSystemWindows">true</item>
+
         <!-- Remove the default ActionBar -->
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

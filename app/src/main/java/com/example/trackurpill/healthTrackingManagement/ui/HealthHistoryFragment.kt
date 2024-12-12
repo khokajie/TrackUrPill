@@ -50,7 +50,7 @@ class HealthHistoryFragment : Fragment() {
         val targetUserId = patientId ?: currentUserId // If patientId is passed, use it; otherwise, use the logged-in user ID
 
         if (targetUserId != null) {
-            healthHistoryVM.getHealthRecordsLD().observe(viewLifecycleOwner) { healthRecords ->
+            healthHistoryVM.getResultLD().observe(viewLifecycleOwner) { healthRecords ->
                 val filteredHealthRecords = healthRecords?.filter { it.userId == targetUserId } ?: emptyList()
 
                 // Update no record text visibility
@@ -58,8 +58,8 @@ class HealthHistoryFragment : Fragment() {
 
                 // Find the latest valid record for BMI, height, and weight
                 val latestValidRecord = filteredHealthRecords
-                    .filter { it.height > 0 && it.weight > 0 && it.bmi > 0 }
-                    .maxWithOrNull(compareBy { it.recordDateTime ?: Date(0) })
+                    .filter { it.height > 0 && it.weight > 0 && it.bmi > 0 && it.recordDateTime != null }
+                    .maxWithOrNull(compareBy { parseDate(it.recordDateTime) })
 
                 // Update the UI with the latest valid record values
                 if (latestValidRecord != null) {
@@ -91,6 +91,19 @@ class HealthHistoryFragment : Fragment() {
         }
 
         return binding.root
+    }
+
+    // Define the date format matching your recordDateTime string
+    val dateFormatter = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
+
+    // Function to safely parse date strings
+    fun parseDate(dateString: String?): Date {
+        return try {
+            dateString?.let { dateFormatter.parse(it) } ?: Date(0)
+        } catch (e: Exception) {
+            // Log the error if needed
+            Date(0) // Fallback to epoch if parsing fails
+        }
     }
 
 }

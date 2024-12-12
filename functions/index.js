@@ -479,22 +479,11 @@ exports.processScheduledReminders = functions.pubsub
           // Add notificationId to dataPayload
           dataPayload.notificationId = notificationId;
 
-          // Define notification payload
-          const notificationPayload = {
-            title: title,
-            body: body,
-          };
-
           // Send data-only FCM message
           const messagingResponse = await admin.messaging().send({
             data: dataPayload, // All values are strings
-            notification: notificationPayload,
             android: {
               priority: "high",
-              notification: {
-                channelId: "medication_reminders",
-                priority: "high",
-              },
             },
             token: fcmToken,
           });
@@ -756,12 +745,6 @@ Check your app to accept the invitation.`,
       const body = `A caregiver (${caregiverUsername}) wants to help you to monitor your 
 medication adherence. Check your app to accept the invitation.`;
 
-      // Define notification payload
-      const notificationPayload = {
-        title: title,
-        body: body,
-      };
-
       // Prepare dataPayload without notificationId
       const dataPayload = {
         type: "invitation", // Specify the type
@@ -776,26 +759,18 @@ medication adherence. Check your app to accept the invitation.`;
       const message = {
         token: fcmToken,
         data: dataPayload,
-        notification: notificationPayload,
         android: {
           priority: "high",
-          notification: {
-            channelId: "invitation_notifications",
-            priority: "high",
-          },
         },
       };
 
       // Send FCM notification using send() instead of sendToDevice()
-      const response = await admin.messaging().send(message);
-      console.log(`FCM Response: ${response}`);
+      await admin.messaging().send(message);
 
       // Update the Notification document with FCM response and receivedAt timestamp
       await notificationDocRef.set(
         {
           ...notificationData,
-          fcmResponse: response,
-          sentAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true },
       );
@@ -813,3 +788,211 @@ medication adherence. Check your app to accept the invitation.`;
     }
   },
 );
+
+/**
+ * Callable function to handle patient response to caregiver invitation.
+ * @param {object} data - Contains caregiverId, response, and notificationId.
+ * @param {object} context - Authentication context.
+ * @returns {object} - Success or error message.
+ */
+exports.responseInvitation = functions.https.onCall(async (data, context) => {
+  try {
+    console.log("Raw request data:", JSON.stringify(data));
+
+    // 1. Authentication Check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated.",
+      );
+    }
+
+    const patientId = context.auth.uid;
+
+    // 2. Input Validation
+    const { caregiverId, response, notificationId } = data;
+
+    if (!caregiverId || typeof caregiverId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid caregiverId is required.",
+      );
+    }
+
+    if (!response || (response !== "accept" && response !== "decline")) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid response is required ('accept' or 'decline').",
+      );
+    }
+
+    if (!notificationId || typeof notificationId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid notificationId is required.",
+      );
+    }
+
+    console.log(
+      `${patientId} response: ${response} to caregiver ID: ${caregiverId}, Notification ID: ${notificationId}`,
+    );
+
+    // 3. Retrieve Caregiver Document
+    const caregiverDoc = await admin
+      .firestore()
+      .collection("Caregiver")
+      .doc(caregiverId)
+      .get();
+
+    if (!caregiverDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "No caregiver found with the provided caregiverId.",
+      );
+    }
+
+    const caregiverData = caregiverDoc.data();
+    const caregiverFcmToken = caregiverData.fcmToken;
+
+    if (!caregiverFcmToken) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Caregiver does not have a valid FCM token.",
+      );
+    }
+
+    // 4. Retrieve Patient Document
+    const patientDoc = await admin
+      .firestore()
+      .collection("Patient")
+      .doc(patientId)
+      .get();
+
+    if (!patientDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Patient not found.");
+    }
+
+    const patientData = patientDoc.data();
+    const patientUserName = patientData.userName || "Patient";
+
+    // 5. Retrieve Specific Invitation Notification Using notificationId
+    const invitationDoc = await admin
+      .firestore()
+      .collection("Notification")
+      .doc(notificationId)
+      .get();
+
+    if (!invitationDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "Invitation notification not found.",
+      );
+    }
+
+    const invitationData = invitationDoc.data();
+
+    // Validate that the notification is an invitation and is pending
+    if (
+      invitationData.type !== "invitation" ||
+      invitationData.userId !== patientId ||
+      invitationData.senderId !== caregiverId ||
+      invitationData.status !== "Sent"
+    ) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Invalid invitation notification.",
+      );
+    }
+
+    // 6. Update Invitation Status
+    const newStatus = response === "accept" ? "Accepted" : "Declined";
+
+    await admin
+      .firestore()
+      .collection("Notification")
+      .doc(notificationId)
+      .update({
+        status: newStatus,
+      });
+
+    console.log(`Invitation ${notificationId} marked as ${newStatus}.`);
+
+    // 7. Create a Response Notification for the Caregiver
+    const responseNotificationRef = admin
+      .firestore()
+      .collection("Notification")
+      .doc();
+
+    const responseMessage =
+      response === "accept" ?
+        `${patientUserName} has accepted your invitation. Check your app to view the response.`:
+        `${patientUserName} has declined your invitation. Check your app to view the response.`;
+
+    const responseNotificationData = {
+      type: "response",
+      userId: caregiverId, // Recipient
+      senderId: patientId, // Sender
+      message: responseMessage,
+      status: "Sent",
+      timestamp: admin.firestore.Timestamp.now(),
+    };
+
+    await responseNotificationRef.set(responseNotificationData);
+
+    console.log(
+      `Response Notification ${responseNotificationRef.id} created for caregiver ${caregiverId}.`,
+    );
+
+    // 8. Add Patient to Caregiver's patientList if accepted
+    if (response === "accept") {
+      await admin
+        .firestore()
+        .collection("Caregiver")
+        .doc(caregiverId)
+        .update({
+          patientList: admin.firestore.FieldValue.arrayUnion(patientId),
+        });
+      console.log(
+        `Patient ID '${patientId}' added to caregiver '${caregiverId}' patientList.`,
+      );
+    }
+
+    // 9. Prepare Data Payload for FCM
+    const dataPayload = {
+      type: "response",
+      notificationId: responseNotificationRef.id,
+      userId: caregiverId,
+      senderId: patientId,
+      message: responseMessage,
+      title: "Invitation Response",
+      body: responseMessage,
+    };
+
+    // 10. Send FCM Notification to Caregiver
+    const fcmMessage = {
+      token: caregiverFcmToken,
+      data: dataPayload,
+      android: {
+        priority: "high",
+      },
+    };
+
+    const fcmResponse = await admin.messaging().send(fcmMessage);
+
+    console.log(
+      `FCM Notification sent to caregiver ${caregiverId}:`,
+      fcmResponse,
+    );
+
+    return { success: true, message: "Response sent successfully." };
+  } catch (error) {
+    console.error("Error in responseInvitation:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      "internal",
+      error.message || "An unknown error occurred.",
+    );
+  }
+});

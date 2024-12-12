@@ -101,21 +101,41 @@ class NotificationFragment : Fragment() {
                 }
             },
             onAcceptInvitation = { notification ->
-                notificationVM.acceptInvitation(notification.notificationId)
-                // Cancel the system notification
-                cancelSystemNotification(notification.notificationId)
-                requireActivity().runOnUiThread {
-                    Toast.makeText(requireContext(), "Invitation Accepted.", Toast.LENGTH_SHORT).show()
+                notificationVM.acceptInvitation(
+                    notification.notificationId,
+                    notification.senderId
+                ) { success, message ->
+                    // Cancel the system notification
+                    cancelSystemNotification(notification.notificationId)
+
+                    // Show a Toast message based on the success flag
+                    requireActivity().runOnUiThread {
+                        if (success) {
+                            Toast.makeText(requireContext(), "Invitation Accepted: $message", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(requireContext(), "Failed to Accept Invitation: $message", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             },
             onRejectInvitation = { notification ->
-                notificationVM.declineInvitation(notification.notificationId)
-                // Cancel the system notification
-                cancelSystemNotification(notification.notificationId)
-                requireActivity().runOnUiThread {
-                    Toast.makeText(requireContext(), "Invitation Rejected.", Toast.LENGTH_SHORT).show()
+                notificationVM.declineInvitation(
+                    notification.notificationId,
+                    notification.senderId
+                ) { success, message ->
+                    // Cancel the system notification
+                    cancelSystemNotification(notification.notificationId)
+
+                    // Show a Toast message based on the success flag
+                    requireActivity().runOnUiThread {
+                        if (success) {
+                            Toast.makeText(requireContext(), "Invitation Rejected: $message", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(requireContext(), "Failed to Reject Invitation: $message", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
-            },
+            }
         )
 
         binding.recyclerViewNotifications.adapter = adapter
@@ -124,7 +144,7 @@ class NotificationFragment : Fragment() {
         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
         if (currentUserId != null) {
-            notificationVM.getNotificationsLD().observe(viewLifecycleOwner) { notifications ->
+            notificationVM.getSortedNotificationsLD().observe(viewLifecycleOwner) { notifications ->
                 val filteredNotifications = notifications?.filter { it.userId == currentUserId } ?: emptyList()
 
                 // Submit the filtered list to the adapter

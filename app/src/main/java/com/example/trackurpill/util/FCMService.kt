@@ -25,7 +25,7 @@ class FCMService : FirebaseMessagingService() {
 
         // Always handle data payload
         if (remoteMessage.data.isNotEmpty()) {
-            Log.d("FCMService", "Message data payload: ${remoteMessage.data}")
+            Log.d("FCMService", "Messag data payload: ${remoteMessage.data}")
             val type = remoteMessage.data["type"]
             sendNotification(
                 remoteMessage.data["title"],
@@ -54,6 +54,7 @@ class FCMService : FirebaseMessagingService() {
         val channelId = when (type) {
             "reminder" -> "medication_reminders"
             "invitation" -> "invitation_notifications"
+            "response" -> "response_notifications"
             else -> "default_channel"
         }
 
@@ -110,6 +111,7 @@ class FCMService : FirebaseMessagingService() {
                 val dismissIntent = Intent(this, NotificationActionReceiver::class.java).apply {
                     action = "ACTION_DISMISS_REMINDER"
                     putExtra("notificationId", notificationIdStr)
+                    putExtra("reminderId", data["reminderId"])
                     putExtra("type", type)
                 }
                 val dismissPendingIntent = PendingIntent.getBroadcast(
@@ -123,50 +125,6 @@ class FCMService : FirebaseMessagingService() {
                         R.drawable.ic_dismiss, // Replace with your actual icon
                         "Dismiss",
                         dismissPendingIntent
-                    )
-                )
-            }
-
-            "invitation" -> {
-                // Action 1: Accept Invitation
-                val acceptIntent = Intent(this, NotificationActionReceiver::class.java).apply {
-                    action = "ACTION_ACCEPT_INVITATION"
-                    putExtra("notificationId", notificationIdStr)
-                    putExtra("senderId", data["senderId"])
-                    putExtra("patientId", data["userId"])
-                    putExtra("type", type)
-                }
-                val acceptPendingIntent = PendingIntent.getBroadcast(
-                    this,
-                    notificationIdStr.hashCode() + 1,
-                    acceptIntent,
-                    pendingIntentFlags
-                )
-                actions.add(
-                    NotificationCompat.Action(
-                        R.drawable.ic_taken, // Replace with your actual icon
-                        "Accept",
-                        acceptPendingIntent
-                    )
-                )
-
-                // Action 2: Decline Invitation
-                val declineIntent = Intent(this, NotificationActionReceiver::class.java).apply {
-                    action = "ACTION_DECLINE_INVITATION"
-                    putExtra("notificationId", notificationIdStr)
-                    putExtra("type", type)
-                }
-                val declinePendingIntent = PendingIntent.getBroadcast(
-                    this,
-                    notificationIdStr.hashCode() + 2,
-                    declineIntent,
-                    pendingIntentFlags
-                )
-                actions.add(
-                    NotificationCompat.Action(
-                        R.drawable.ic_dismiss, // Replace with your actual icon
-                        "Decline",
-                        declinePendingIntent
                     )
                 )
             }
@@ -205,15 +163,17 @@ class FCMService : FirebaseMessagingService() {
             val channelId = when (type) {
                 "reminder" -> "medication_reminders"
                 "invitation" -> "invitation_notifications"
+                "response" -> "response_notifications"
                 else -> "default_channel"
             }
             val channelName = when (type) {
                 "reminder" -> "Medication Reminders"
                 "invitation" -> "Invitation Notifications"
+                "response" -> "Response Notifications"
                 else -> "Default Notifications"
             }
             val importance = when (type) {
-                "reminder", "invitation" -> NotificationManager.IMPORTANCE_HIGH
+                "reminder", "invitation", "response"-> NotificationManager.IMPORTANCE_HIGH
                 else -> NotificationManager.IMPORTANCE_DEFAULT
             }
 
@@ -221,6 +181,7 @@ class FCMService : FirebaseMessagingService() {
                 description = when (type) {
                     "reminder" -> "Notifications for medication reminders"
                     "invitation" -> "Notifications for patient invitations"
+                    "response" -> "Notifications for patient response"
                     else -> "General notifications"
                 }
             }

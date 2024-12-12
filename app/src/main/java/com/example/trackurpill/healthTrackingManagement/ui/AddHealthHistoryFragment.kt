@@ -47,9 +47,6 @@ class AddHealthHistoryFragment : Fragment() {
                 0.0
             }
 
-            // Format the current date to "dd/MM/yyyy"
-            val formattedDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-
             // Create HealthRecord object
             val healthRecord = HealthRecord(
                 recordId = UUID.randomUUID().toString(),
@@ -76,7 +73,7 @@ class AddHealthHistoryFragment : Fragment() {
 
     // Function to create a formatted date string
     fun getCurrentFormattedDateTime(): String {
-        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val formatter = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
         return formatter.format(System.currentTimeMillis())
     }
 

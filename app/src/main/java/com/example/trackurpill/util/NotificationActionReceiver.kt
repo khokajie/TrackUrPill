@@ -10,11 +10,13 @@ import android.util.Log
 import android.widget.Toast
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.data.MedicationLog
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.ktx.functions
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,11 +26,16 @@ import java.util.Date
 import java.util.UUID
 
 class NotificationActionReceiver : BroadcastReceiver() {
+
+    // Initialize Firebase Functions
+    private val functions: FirebaseFunctions by lazy { Firebase.functions }
+
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
 
         val action = intent.action
         val notificationId = intent.getStringExtra("notificationId")
+        val reminderId = intent.getStringExtra("reminderId")
         val type = intent.getStringExtra("type") // "reminder" or "invitation"
 
         Log.d("NotificationActionReceiver", "Received action: $action, type: $type")
@@ -37,26 +44,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
             "reminder" -> {
                 when (action) {
                     "ACTION_TAKE_MEDICATION" -> {
-                        val reminderId = intent.getStringExtra("reminderId")
                         val medicationId = intent.getStringExtra("medicationId")
                         val dosageStr = intent.getStringExtra("dosage") ?: "1 Tablet"
                         handleTakeMedication(context, reminderId, medicationId, dosageStr, notificationId)
                     }
                     "ACTION_DISMISS_REMINDER" -> {
-                        val reminderId = intent.getStringExtra("reminderId")
                         handleDismissReminder(context, reminderId, notificationId)
-                    }
-                }
-            }
-            "invitation" -> {
-                when (action) {
-                    "ACTION_ACCEPT_INVITATION" -> {
-                        val senderId = intent.getStringExtra("senderId")
-                        val patientId = intent.getStringExtra("patientId")
-                        handleAcceptInvitation(context, notificationId, senderId, patientId)
-                    }
-                    "ACTION_DECLINE_INVITATION" -> {
-                        handleDeclineInvitation(context, notificationId)
                     }
                 }
             }
@@ -99,7 +92,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // Step 2: Extract dosage number
                 val dosageNumber = extractDosageNumber(dosageStr)
                 if (dosageNumber <= 0) {
-
                     throw FirebaseFirestoreException("Invalid dosage value.", FirebaseFirestoreException.Code.INVALID_ARGUMENT)
                 }
 
@@ -182,111 +174,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // Provide user feedback
                 CoroutineScope(Dispatchers.Main).launch {
                     Toast.makeText(context, "Reminder dismissed.", Toast.LENGTH_SHORT).show()
-                }
-
-                // Cancel the notification
-                cancelNotification(context, notificationId)
-
-            } catch (e: FirebaseFirestoreException) {
-                Log.e("NotificationActionReceiver", "Firestore error: ", e)
-                CoroutineScope(Dispatchers.Main).launch {
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("NotificationActionReceiver", "Unexpected error: ", e)
-                CoroutineScope(Dispatchers.Main).launch {
-                    Toast.makeText(context, "An unexpected error occurred.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun handleAcceptInvitation(
-        context: Context,
-        notificationId: String?,
-        senderId: String?,
-        patientId: String?
-    ) {
-        // Validate all required parameters
-        if (notificationId == null || senderId == null || patientId == null) {
-            Toast.makeText(context, "Invalid action parameters.", Toast.LENGTH_SHORT).show()
-            Log.e("NotificationActionReceiver", "Missing parameters for accepting invitation.")
-            return
-        }
-
-        // Launch a coroutine in the IO dispatcher for network operations
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val db = FirebaseFirestore.getInstance()
-                val auth = FirebaseAuth.getInstance()
-                val currentUserId = auth.currentUser?.uid
-
-                // Ensure the user is authenticated
-                if (currentUserId == null) {
-                    throw FirebaseFirestoreException(
-                        "User not authenticated.",
-                        FirebaseFirestoreException.Code.PERMISSION_DENIED
-                    )
-                }
-
-                db.collection("Notification").document(notificationId)
-                    .update("status", "Accepted")
-                    .await() // Await the completion of the update operation
-                Log.d("NotificationActionReceiver", "Invitation status updated to 'Accepted'.")
-
-                db.collection("Caregiver").document(senderId)
-                    .update("patientList", FieldValue.arrayUnion(patientId))
-                    .await() // Await the completion of the update operation
-                Log.d("NotificationActionReceiver", "Patient ID '$patientId' added to caregiver '$senderId' patientList.")
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Invitation accepted.", Toast.LENGTH_SHORT).show()
-                }
-
-                // 4. Cancel the notification from the notification tray
-                cancelNotification(context, notificationId)
-
-            } catch (e: FirebaseFirestoreException) {
-                // Handle Firestore-specific exceptions
-                Log.e("NotificationActionReceiver", "Firestore error: ", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                // Handle any other unexpected exceptions
-                Log.e("NotificationActionReceiver", "Unexpected error: ", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "An unexpected error occurred.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun handleDeclineInvitation(
-        context: Context,
-        notificationId: String?
-    ) {
-        if (notificationId == null) {
-            Toast.makeText(context, "Invalid action parameters.", Toast.LENGTH_SHORT).show()
-            Log.e("NotificationActionReceiver", "Missing parameters for declining invitation.")
-            return
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val db = FirebaseFirestore.getInstance()
-
-                // Update invitation status to 'declined'
-                db.collection("Notification").document(notificationId)
-                    .update("status", "Declined")
-                    .await()
-                Log.d("NotificationActionReceiver", "Invitation status updated to 'declined'.")
-
-                // need to send notification back to the caregiver
-
-                // Provide user feedback
-                CoroutineScope(Dispatchers.Main).launch {
-                    Toast.makeText(context, "Invitation declined.", Toast.LENGTH_SHORT).show()
                 }
 
                 // Cancel the notification
