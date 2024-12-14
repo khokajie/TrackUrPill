@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/interactionItem"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/white"
+    app:strokeColor="@color/primary_blue"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Medication Pair -->
+        <TextView
+            android:id="@+id/txtMedicationPair"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Aspirin and Warfarin:"
+            android:textColor="@color/text_dark_gray"
+            android:textStyle="bold"
+            android:textSize="18sp"
+            android:paddingBottom="8dp" />
+
+        <!-- Interaction Details with Icon -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp">
+
+            <ImageView
+                android:id="@+id/iconInteractionDetails"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_warning"
+                app:tint="@color/warning_yellow"
+                android:contentDescription="@string/interaction_details_icon" />
+
+            <TextView
+                android:id="@+id/txtInteractionDetailSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Interaction Details"
+                style="@style/SubtitleStyle"
+                android:paddingStart="8dp" />
+        </LinearLayout>
+
+        <!-- Interaction Details Content -->
+        <TextView
+            android:id="@+id/txtInteractionDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="- Warfarin and Aspirin both increase the risk of bleeding. This interaction increases the risk of gastrointestinal bleeding, bruising, and other bleeding complications."
+            style="@style/ContentStyle"
+            android:paddingBottom="8dp" />
+
+        <!-- Suggestion/Solution with Icon -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp">
+
+            <ImageView
+                android:id="@+id/iconSuggestion"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_suggestion"
+                app:tint="@color/black"
+                android:contentDescription="@string/suggestion_icon" />
+
+            <TextView
+                android:id="@+id/txtSuggestionSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Suggestion/Solution"
+                style="@style/SubtitleStyle"
+                android:paddingStart="8dp" />
+        </LinearLayout>
+
+        <!-- Suggestion/Solution Content -->
+        <TextView
+            android:id="@+id/txtSuggestion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="- Close monitoring of INR (International Normalized Ratio) levels is crucial, and the warfarin dose may need to be reduced to prevent excessive bleeding. A physician should be consulted immediately if bleeding occurs."
+            style="@style/ContentStyle" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

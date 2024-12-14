@@ -127,3 +127,9 @@ data class LoggedInUser(
     var userType: String = "",
     var userId: String = ""
 )
+
+data class MedicationInteraction(
+    val medicationPair: String,
+    val interactionDetail: String,
+    val suggestion: String
+)

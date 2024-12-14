@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.LiveData
 import com.example.trackurpill.api.data.GeminiRequest
+import com.example.trackurpill.api.data.GeminiResponse
 import retrofit2.Response
 
 class GeminiViewModel : ViewModel() {

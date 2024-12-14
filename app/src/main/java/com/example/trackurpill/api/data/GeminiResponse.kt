@@ -1,4 +1,4 @@
-package com.example.trackurpill.api
+package com.example.trackurpill.api.data
 
 data class GeminiResponse(
     val candidates: List<Candidate>,

@@ -46,6 +46,13 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.example.trackurpill.data.MedicationInteraction
+import com.example.trackurpill.medicationManagement.util.InteractionsAdapter
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class AddPatientMedicationFragment : Fragment() {
 
@@ -124,36 +131,49 @@ class AddPatientMedicationFragment : Fragment() {
             // Save medication
             medicationVM.setMedication(medication)
 
-            // Retrieve all medications for the user including the newly added one
-            val allMedications = medicationVM.getAllByUser(targetUserId.toString()).toMutableList().apply {
-                add(
-                    Medication(
-                        medicationId = medication.medicationId,
-                        medicationName = medication.medicationName,
-                        dosage = medication.dosage,
-                        expirationDate = medication.expirationDate,
-                        stockLevel = medication.stockLevel,
-                        instruction = medication.instruction,
-                        userId = medication.userId
-                    )
-                )
-            }
+            // Retrieve all existing medications for the user
+            val existingMedications = medicationVM.getAllByUser(targetUserId.toString()).toMutableList()
 
-            // 1. Construct the Prompt
-            val medicationNames = allMedications.joinToString(", ") { it.medicationName }
-            val promptText = "Check the interactions between the following medications: $medicationNames."
+            // Identify the newly added medication
+            val newlyAddedMedication = medication
 
-            // 2. Create Parts with the Prompt
+            val promptText = """
+                Identify any **clinically significant** interactions between the newly added medication and the existing medications.
+                For each significant interaction found, provide a brief detail and a corresponding suggestion or solution.
+                **Only** include interactions that require medical attention or dosage adjustments.
+                (give max 2 sentences for both interaction and solution)
+                
+                Format each interaction as follows:
+                
+                MedicationA and MedicationB:
+                - Interaction detail.
+                - Suggestion/Solution: [Your suggestion here]
+                
+                Example:
+                
+                Ibuprofen and Warfarin:
+                - Ibuprofen can increase the risk of bleeding when taken with warfarin.
+                - Suggestion/Solution: Monitor INR levels closely and consider alternative pain relievers.
+                
+                If no clinically significant interactions are found, respond with "No interactions found."
+                
+                Newly Added Medication: ${newlyAddedMedication.medicationName}
+                Existing Medications: ${existingMedications.joinToString(", ") { it.medicationName }}
+                
+                Response:
+            """.trimIndent()
+
+            // Create Parts with the Prompt
             val partsList = listOf(
                 Part(text = promptText)
             )
 
-            // 3. Wrap Parts into Content
+            // Wrap Parts into Content
             val contentsList = listOf(
                 Content(parts = partsList)
             )
 
-            // 4. Prepare GeminiRequest with List<Content>
+            // Prepare GeminiRequest with List<Content>
             val geminiRequest = GeminiRequest(contents = contentsList)
 
 
@@ -161,38 +181,38 @@ class AddPatientMedicationFragment : Fragment() {
             geminiViewModel.generateContent(geminiRequest, "AIzaSyC_5oXR_z3oL2AxPhmS6dwIFDYv-2WdZOU")
 
             // Show loading dialog
-            /*loadingDialog = AlertDialog.Builder(requireContext())
-                .setTitle("Checking Drug Safety")
+            loadingDialog = AlertDialog.Builder(requireContext())
+                .setTitle("Checking Medication Interaction")
                 .setMessage("Loading...")
                 .setCancelable(false)
                 .create()
             loadingDialog?.show()
 
-            // Launch a coroutine to fetch data and show the dialog
-            viewLifecycleOwner.lifecycleScope.launch {
-                showAdverseEventDialog()
-            }*/
-
-            // Observe ViewModel LiveData
             observeViewModel()
         }
 
         return binding.root
     }
 
-
-
     private fun observeViewModel() {
         geminiViewModel.geminiResponse.observe(viewLifecycleOwner) { response ->
-            // Hide loading indicator
-            //binding.progressBar.visibility = View.GONE
+            // Dismiss the loading dialog
+            loadingDialog?.dismiss()
 
             if (response != null && response.candidates.isNotEmpty()) {
                 val generatedText = response.candidates.joinToString(separator = "\n") { candidate ->
                     candidate.content.parts.joinToString(separator = " ") { it.text }
                 }
-                // Handle the generated text as needed
-                showGeneratedContent(generatedText)
+
+                Log.d("GeminiResponse", generatedText) // For debugging
+
+                // Parse the generated text into structured data
+                val interactions = parseInteractions(generatedText)
+                if (interactions.isNotEmpty()) {
+                    showCustomInteractionDialog(interactions)
+                } else {
+                    showGeneratedContent("No interactions found.")
+                }
 
                 // Inform the user
                 Toast.makeText(requireContext(), "Content Generated Successfully!", Toast.LENGTH_SHORT).show()
@@ -206,8 +226,8 @@ class AddPatientMedicationFragment : Fragment() {
         }
 
         geminiViewModel.error.observe(viewLifecycleOwner) { errorMsg ->
-            // Hide loading indicator
-            //binding.progressBar.visibility = View.GONE
+            // Dismiss the loading dialog
+            loadingDialog?.dismiss()
 
             errorMsg?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
@@ -216,13 +236,141 @@ class AddPatientMedicationFragment : Fragment() {
         }
     }
 
+    private fun showCustomInteractionDialog(interactions: List<MedicationInteraction>) {
+        Log.d("ShowDialog", "Number of interactions to display: ${interactions.size}")
 
-    private fun showGeneratedContent(content: String) {
-        // Implement how you want to display the generated content
-        // For example, show in a dialog or populate a TextView
+        if (interactions.isEmpty()) {
+            showGeneratedContent("No interactions found.")
+            return
+        }
+
+        // Inflate the custom dialog layout
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_medication_interaction, null)
+
+        // Initialize the RecyclerView
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.recyclerViewInteractions)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = InteractionsAdapter(interactions)
+
+        // Initialize the OK button
+        val okButton = dialogView.findViewById<MaterialButton>(R.id.dialogOkButton)
+
+        // Build the dialog
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .setCancelable(false) // Prevent dismissal on outside touch
+            .create()
+
+        // Set click listener for the OK button to dismiss the dialog
+        okButton.setOnClickListener {
+            dialog.dismiss()
+            nav.navigateUp()
+        }
+
+        // Show the dialog
+        dialog.show()
+    }
+
+
+
+    private fun parseInteractions(generatedText: String): List<MedicationInteraction> {
+        // Check for the "No interactions found" response
+        if (generatedText.trim().equals("No interactions found.", ignoreCase = true)) {
+            Log.d("ParseInteractions", "No interactions found.")
+            return emptyList()
+        }
+
+        val interactions = mutableListOf<MedicationInteraction>()
+
+        // Split the text into lines for easier processing
+        val lines = generatedText.split("\n")
+
+        var currentMedicationPair: String? = null
+        var interactionDetailBuilder = StringBuilder()
+        var suggestionBuilder = StringBuilder()
+        var bulletCount = 0 // To track bullet points per interaction
+
+        for (line in lines) {
+            val trimmedLine = line.trim()
+            Log.d("ParseInteractions", "Processing line: $trimmedLine")
+
+            // Check if the line denotes a new medication pair
+            if (trimmedLine.matches(Regex("""^[A-Za-z\s]+\s(?:and|&)\s[A-Za-z\s]+:$"""))) {
+                Log.d("ParseInteractions", "Found medication pair: $trimmedLine")
+                // If there's an existing interaction, add it to the list
+                if (currentMedicationPair != null && interactionDetailBuilder.isNotEmpty() && suggestionBuilder.isNotEmpty()) {
+                    interactions.add(
+                        MedicationInteraction(
+                            medicationPair = currentMedicationPair,
+                            interactionDetail = interactionDetailBuilder.toString().trim(),
+                            suggestion = suggestionBuilder.toString().trim()
+                        )
+                    )
+                    Log.d("ParseInteractions", "Added interaction for: $currentMedicationPair")
+                    // Reset the builders and bullet count
+                    interactionDetailBuilder = StringBuilder()
+                    suggestionBuilder = StringBuilder()
+                    bulletCount = 0
+                }
+                // Update the current medication pair
+                currentMedicationPair = trimmedLine.removeSuffix(":")
+            }
+            // Check if the line contains a bullet point
+            else if (trimmedLine.startsWith("-")) {
+                bulletCount += 1
+                if (trimmedLine.contains("Suggestion/Solution:", ignoreCase = true)) {
+                    // Extract suggestion following the "Suggestion/Solution:" prefix
+                    val suggestion = trimmedLine.substringAfter("Suggestion/Solution:").trim()
+                    suggestionBuilder.append(suggestion).append(" ")
+                    Log.d("ParseInteractions", "Found suggestion: $suggestion")
+                } else {
+                    // Depending on bulletCount, assign to interaction or suggestion
+                    if (bulletCount == 1) {
+                        // First bullet is interaction detail
+                        val interaction = trimmedLine.removePrefix("-").trim()
+                        // **Exclude** interactions that state no significant interaction
+                        if (!interaction.contains("no clinically significant interaction", ignoreCase = true)) {
+                            interactionDetailBuilder.append(interaction).append(" ")
+                            Log.d("ParseInteractions", "Found interaction detail: $interaction")
+                        } else {
+                            // Reset builders if interaction is not significant
+                            interactionDetailBuilder = StringBuilder()
+                            suggestionBuilder = StringBuilder()
+                            bulletCount = 0
+                            Log.d("ParseInteractions", "Excluded non-significant interaction.")
+                        }
+                    } else if (bulletCount == 2) {
+                        // Second bullet is suggestion
+                        val suggestion = trimmedLine.removePrefix("-").trim()
+                        suggestionBuilder.append(suggestion).append(" ")
+                        Log.d("ParseInteractions", "Found suggestion (fallback): $suggestion")
+                    }
+                }
+            }
+        }
+
+        // Add the last interaction if present
+        if (currentMedicationPair != null && interactionDetailBuilder.isNotEmpty() && suggestionBuilder.isNotEmpty()) {
+            interactions.add(
+                MedicationInteraction(
+                    medicationPair = currentMedicationPair,
+                    interactionDetail = interactionDetailBuilder.toString().trim(),
+                    suggestion = suggestionBuilder.toString().trim()
+                )
+            )
+            Log.d("ParseInteractions", "Added interaction for: $currentMedicationPair")
+        }
+
+        Log.d("ParseInteractions", "Total interactions parsed: ${interactions.size}")
+        return interactions
+    }
+
+
+    private fun showGeneratedContent(message: String) {
         AlertDialog.Builder(requireContext())
-            .setTitle("Generated Content")
-            .setMessage(content)
+            .setTitle("Medication Interactions")
+            .setMessage(message)
             .setPositiveButton("OK") { dialog, _ ->
                 dialog.dismiss()
                 nav.navigateUp()
@@ -230,113 +378,6 @@ class AddPatientMedicationFragment : Fragment() {
             .setCancelable(false)
             .show()
     }
-
-    /*private suspend fun showAdverseEventDialog() {
-        try {
-            val medicationName = binding.txtMedicationName.text.toString().trim().uppercase(Locale.getDefault())
-            val info = adverseEventVM.getHealthInfo(medicationName)
-
-            loadingDialog?.dismiss()
-            if (info.isNotEmpty()) {
-                showCustomAdverseEventDialog(info)
-            } else {
-                showNoAdverseEventsDialog()
-            }
-        } catch (e: Exception) {
-            loadingDialog?.dismiss()
-            Toast.makeText(requireContext(), "Error checking drug information", Toast.LENGTH_SHORT).show()
-            nav.navigateUp()
-            Log.e(TAG, "Error in showAdverseEventDialog", e)
-        }
-    }
-
-    private fun showCustomAdverseEventDialog(info: List<DetailedHealthInfo>) {
-        // Inflate custom dialog layout
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_adverse_events, null)
-        val eventsContainer = dialogView.findViewById<LinearLayout>(R.id.eventsContainer)
-        val btnUnderstood = dialogView.findViewById<Button>(R.id.btnUnderstood)
-
-        // Populate the events
-        populateAdverseEvents(eventsContainer, info)
-
-        // Build and show the dialog
-        val dialog = AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .setCancelable(false)
-            .create()
-
-        btnUnderstood.setOnClickListener {
-            dialog.dismiss()
-            Toast.makeText(requireContext(), "Medication Added", Toast.LENGTH_SHORT).show()
-            nav.navigateUp()
-        }
-
-        dialog.show()
-    }
-
-    private fun showNoAdverseEventsDialog() {
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle("No Adverse Events Found")
-            .setMessage("No known adverse events were found for this medication.")
-            .setPositiveButton("OK") { _, _ ->
-                Toast.makeText(requireContext(), "Medication Added", Toast.LENGTH_SHORT).show()
-                nav.navigateUp()
-            }
-            .setCancelable(false)
-            .create()
-        dialog.show()
-    }
-
-    private fun populateAdverseEvents(container: LinearLayout, info: List<DetailedHealthInfo>) {
-        try {
-            info.forEach { healthInfo ->
-                val itemView = LayoutInflater.from(requireContext())
-                    .inflate(R.layout.item_adverse_event, container, false)
-
-                val imgSeverityIcon = itemView.findViewById<ImageView>(R.id.imgSeverityIcon)
-                val txtAdverseEvent = itemView.findViewById<TextView>(R.id.txtAdverseEvent)
-                val txtEventDetails = itemView.findViewById<TextView>(R.id.txtEventDetails)
-
-                // Set the adverse event name
-                txtAdverseEvent.text = healthInfo.adverseEvent
-
-                // Set the severity icon and color
-                val (iconRes, colorRes) = getSeverityIconAndColor(healthInfo.severity)
-                imgSeverityIcon.setImageResource(iconRes)
-                imgSeverityIcon.imageTintList = ContextCompat.getColorStateList(requireContext(), colorRes)
-
-
-                // Set the event details
-                val detailsBuilder = StringBuilder()
-                if (!healthInfo.summary.isNullOrEmpty()) {
-                    detailsBuilder.append(healthInfo.summary).append("\n\n")
-                }
-                if (!healthInfo.recommendations.isNullOrEmpty()) {
-                    detailsBuilder.append("Recommendations:\n")
-                    healthInfo.recommendations.take(3).forEach {
-                        detailsBuilder.append("• $it\n")
-                    }
-                }
-                txtEventDetails.text = detailsBuilder.toString()
-
-                // Add the item to the container
-                container.addView(itemView)
-            }
-            Log.d(TAG, "populateAdverseEvents completed successfully")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in populateAdverseEvents", e)
-        }
-    }
-
-    private fun getSeverityIconAndColor(severity: String?): Pair<Int, Int> {
-        return when (severity?.toLowerCase(Locale.ROOT)) {
-            "high" -> Pair(R.drawable.ic_warning, R.color.severityHigh)
-            "medium" -> Pair(R.drawable.ic_warning, R.color.severityMedium)
-            "low" -> Pair(R.drawable.ic_warning, R.color.severityLow)
-            else -> Pair(R.drawable.ic_warning, R.color.severityUnknown)
-        }
-    }*/
 
     override fun onDestroyView() {
         loadingDialog?.dismiss()

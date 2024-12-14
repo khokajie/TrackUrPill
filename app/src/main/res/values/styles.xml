@@ -15,4 +15,16 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item> <!-- Ensures the shape is a perfect circle -->
     </style>
+
+    <style name="SubtitleStyle">
+        <item name="android:textColor">@color/text_dark_gray</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+
+    <!-- Content Style -->
+    <style name="ContentStyle">
+        <item name="android:textColor">@color/text_light_gray</item>
+        <item name="android:textSize">14sp</item>
+    </style>
 </resources>

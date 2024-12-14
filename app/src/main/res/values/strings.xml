@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">TrackUrPill</string>>
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="interaction_icon_description">interaction_icon_description</string>
+    <string name="interaction_details_icon">interaction_details_icon</string>
+    <string name="suggestion_icon">suggestion_icon</string>
 
     <string-array name="frequency_options">
         <item>Once</item>
