@@ -1,4 +1,3 @@
-// File: Login.kt
 package com.example.trackurpill.userManagement.ui
 
 import android.app.AlertDialog
@@ -45,6 +44,7 @@ class Login : Fragment() {
         binding.loginButton.setOnClickListener { handleLogin() }
         binding.registerLink.setOnClickListener { navigateToRegister() }
         binding.forgotPasswordLink.setOnClickListener { showForgotPasswordDialog() }
+        binding.resendVerificationLink.setOnClickListener { resendVerificationEmail() } // Add resend link functionality
 
         return binding.root
     }
@@ -78,7 +78,14 @@ class Login : Fragment() {
         lifecycleScope.launch {
             try {
                 val (role, userId) = authViewModel.login(email, password)
-                if (role != "NA" && userId != null) {
+                val user = authViewModel.getCurrentUser()
+
+                if (user != null && !user.isEmailVerified) {
+                    // Notify the user that their email is not verified
+                    showToast("Please verify your email before logging in.")
+                    FirebaseAuth.getInstance().signOut() // Log the user out
+                } else if (role != "NA" && userId != null) {
+                    // Proceed with login if email is verified
                     storeUserSession(userId, role)
                     userViewModel.setLoggedInUser(role, userId)
                     Log.d("Login", "User logged in with role: $role and userId: $userId")
@@ -162,6 +169,24 @@ class Login : Fragment() {
             }
     }
 
+    private fun resendVerificationEmail() {
+        val user = authViewModel.getCurrentUser()
+        user?.let {
+            if (!it.isEmailVerified) {
+                it.sendEmailVerification().addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        showToast("Verification email resent to ${it.email}.")
+                    } else {
+                        showToast("Failed to resend verification email. Try again later.")
+                        Log.e("Login", "Resend verification email failed", task.exception)
+                    }
+                }
+            } else {
+                showToast("Your email is already verified.")
+            }
+        } ?: showToast("No logged-in user found. Please log in again.")
+    }
+
     private fun showToast(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
@@ -187,10 +212,4 @@ class Login : Fragment() {
         (requireActivity() as MainActivity).showTopAppBar()
         super.onPause()
     }
-
-    /**
-     * Retrieves the FCM token and updates it in Firestore.
-     * Now handled by TokenViewModel.
-     */
-    // Removed direct Firestore operations for FCM token
 }

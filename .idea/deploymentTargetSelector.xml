@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="TrackUrPill">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-12-12T15:42:25.314817100Z">
+        <DropdownSelection timestamp="2024-12-15T15:39:31.339471Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=ab910758" />

@@ -28,7 +28,6 @@ import com.example.trackurpill.R
 import com.example.trackurpill.api.*
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.databinding.FragmentAddPatientMedicationBinding
-import com.example.trackurpill.medicationManagement.data.AdverseEventViewModel
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
 import com.example.trackurpill.notification.data.NotificationViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -58,8 +57,6 @@ class AddPatientMedicationFragment : Fragment() {
 
     private lateinit var binding: FragmentAddPatientMedicationBinding
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
-    private val notificationVM: NotificationViewModel by activityViewModels()
-    private val adverseEventVM: AdverseEventViewModel by viewModels()
     private val geminiViewModel: GeminiViewModel by viewModels()
     private val nav by lazy { findNavController() }
     private var medicationPhotoBlob: Blob? = null // Blob for storing the image
@@ -69,7 +66,6 @@ class AddPatientMedicationFragment : Fragment() {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
-        private const val TAG = "AddPatientMedication"
     }
 
     override fun onCreateView(

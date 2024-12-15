@@ -112,8 +112,15 @@ class Register : Fragment() {
                 // Call ViewModel to handle registration
                 val isSuccess = authViewModel.registerUser(role, userDetails, password)
                 if (isSuccess) {
-                    showToast("Registration successful!")
-                    navigateToLogin()
+                    val user = authViewModel.getCurrentUser()
+                    user?.sendEmailVerification()?.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            showToast("Registration successful! Verification email sent to $email. Please verify before logging in.")
+                            navigateToLogin()
+                        } else {
+                            showToast("Registration successful, but failed to send verification email.")
+                        }
+                    }
                 } else {
                     showToast("Registration failed. Please try again.")
                 }

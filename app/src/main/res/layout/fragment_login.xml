@@ -127,7 +127,7 @@
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/forgotPasswordLink" />
+        app:layout_constraintTop_toBottomOf="@+id/forgotPasswordLink" />
 
     <!-- Register Link -->
     <TextView
@@ -142,5 +142,19 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/loginButton" />
+
+    <!-- Resend Verification Link -->
+    <TextView
+        android:id="@+id/resendVerificationLink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/roboto_regular"
+        android:text="Resend Verification Email"
+        android:textColor="@color/primary_blue"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/registerLink" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
