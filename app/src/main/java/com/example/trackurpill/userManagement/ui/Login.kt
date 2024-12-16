@@ -41,10 +41,14 @@ class Login : Fragment() {
     ): View {
         binding = FragmentLoginBinding.inflate(inflater, container, false)
 
+        // Set click listeners
         binding.loginButton.setOnClickListener { handleLogin() }
         binding.registerLink.setOnClickListener { navigateToRegister() }
         binding.forgotPasswordLink.setOnClickListener { showForgotPasswordDialog() }
-        binding.resendVerificationLink.setOnClickListener { resendVerificationEmail() } // Add resend link functionality
+        binding.resendVerificationLink.setOnClickListener { showResendVerificationDialog() }
+
+        // Initially hide the resend verification link
+        binding.resendVerificationLink.visibility = View.GONE
 
         return binding.root
     }
@@ -77,23 +81,40 @@ class Login : Fragment() {
         binding.loginButton.isEnabled = false
         lifecycleScope.launch {
             try {
+                // Attempt to log in using AuthViewModel
                 val (role, userId) = authViewModel.login(email, password)
                 val user = authViewModel.getCurrentUser()
 
-                if (user != null && !user.isEmailVerified) {
-                    // Notify the user that their email is not verified
-                    showToast("Please verify your email before logging in.")
-                    FirebaseAuth.getInstance().signOut() // Log the user out
-                } else if (role != "NA" && userId != null) {
-                    // Proceed with login if email is verified
-                    storeUserSession(userId, role)
-                    userViewModel.setLoggedInUser(role, userId)
-                    Log.d("Login", "User logged in with role: $role and userId: $userId")
+                if (user != null) {
+                    // Reload user to get the latest verification status
+                    user.reload().addOnCompleteListener { reloadTask ->
+                        if (reloadTask.isSuccessful) {
+                            if (user.isEmailVerified) {
+                                // Email is verified, proceed with login
+                                if (role != "NA" && userId != null) {
+                                    storeUserSession(userId, role)
+                                    userViewModel.setLoggedInUser(role, userId)
+                                    Log.d("Login", "User logged in with role: $role and userId: $userId")
 
-                    // Update FCM token using TokenViewModel
-                    tokenViewModel.updateFCMToken(userId, role)
+                                    // Update FCM token using TokenViewModel
+                                    tokenViewModel.updateFCMToken(userId, role)
 
-                    navigateBasedOnRole(role)
+                                    navigateBasedOnRole(role)
+                                } else {
+                                    showToast("Invalid user role or ID.")
+                                }
+                            } else {
+                                // Email is not verified, show message and offer to resend
+                                showToast("Please verify your email before logging in.")
+                                // Show the resend verification email link
+                                binding.resendVerificationLink.visibility = View.VISIBLE
+                                showResendVerificationDialog() // Automatically show the dialog
+                            }
+                        } else {
+                            showToast("Failed to reload user. Please try again.")
+                            Log.e("Login", "User reload failed", reloadTask.exception)
+                        }
+                    }
                 } else {
                     showToast("Invalid email or password.")
                 }
@@ -169,22 +190,50 @@ class Login : Fragment() {
             }
     }
 
+    private fun showResendVerificationDialog() {
+        // Inflate the custom dialog layout
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_resend_verification, null)
+        val dialogSendButton = dialogView.findViewById<View>(R.id.dialogSendButton)
+        val dialogCancelButton = dialogView.findViewById<View>(R.id.dialogCancelButton)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        // Handle Resend Button Click
+        dialogSendButton.setOnClickListener {
+            resendVerificationEmail()
+            dialog.dismiss()
+        }
+
+        // Handle Cancel Button Click
+        dialogCancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
     private fun resendVerificationEmail() {
         val user = authViewModel.getCurrentUser()
         user?.let {
             if (!it.isEmailVerified) {
-                it.sendEmailVerification().addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        showToast("Verification email resent to ${it.email}.")
-                    } else {
-                        showToast("Failed to resend verification email. Try again later.")
-                        Log.e("Login", "Resend verification email failed", task.exception)
+                it.sendEmailVerification()
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            showToast("Verification email sent to ${it.email}. Please check your inbox.")
+                        } else {
+                            showToast("Failed to send verification email. Please try again.")
+                            Log.e("Login", "Error sending verification email", task.exception)
+                        }
                     }
-                }
             } else {
                 showToast("Your email is already verified.")
             }
-        } ?: showToast("No logged-in user found. Please log in again.")
+        } ?: run {
+            showToast("No logged-in user found. Please log in again.")
+        }
     }
 
     private fun showToast(message: String) {

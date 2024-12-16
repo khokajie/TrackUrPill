@@ -26,7 +26,7 @@
             android:gravity="center"
             android:paddingBottom="16dp" />
 
-        <!-- Medication Name Field -->
+        <!-- Medication Name Field (Non-Editable) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/medicationNameLayout"
             android:layout_width="match_parent"
@@ -38,52 +38,60 @@
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/medicationName"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:enabled="false"
+                android:textColor="@color/text_dark_gray"
+                android:background="@null" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Dosage Field -->
+        <!-- Dosage Field (Non-Editable) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/dosageLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Dosage"
+            android:layout_marginTop="12dp"
             app:boxBackgroundColor="@android:color/transparent"
-            app:boxStrokeColor="@color/primary_blue"
-            android:layout_marginTop="12dp">
+            app:boxStrokeColor="@color/primary_blue">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/dosage"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:enabled="false"
+                android:textColor="@color/text_dark_gray"
+                android:background="@null" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Expiration Date Field -->
+        <!-- Expiration Date Field (Editable) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/expirationDateLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Expiration Date"
+            android:layout_marginTop="12dp"
             app:boxBackgroundColor="@android:color/transparent"
-            app:boxStrokeColor="@color/primary_blue"
-            android:layout_marginTop="12dp">
+            app:boxStrokeColor="@color/primary_blue">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/expirationDate"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:focusable="false"
-                android:clickable="true" />
+                android:clickable="true"
+                android:inputType="date"
+                android:drawableEnd="@drawable/ic_calendar" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Stock Level Field -->
+        <!-- Stock Level Field (Editable) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/stockLevelLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Stock Level"
+            android:layout_marginTop="12dp"
             app:boxBackgroundColor="@android:color/transparent"
-            app:boxStrokeColor="@color/primary_blue"
-            android:layout_marginTop="12dp">
+            app:boxStrokeColor="@color/primary_blue">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/stockLevel"

@@ -111,6 +111,8 @@
         app:layout_constraintEnd_toEndOf="@id/txtLayoutPassword"
         app:layout_constraintTop_toBottomOf="@id/txtLayoutPassword" />
 
+
+
     <!-- Login Button -->
     <Button
         android:id="@+id/loginButton"
@@ -147,12 +149,13 @@
     <TextView
         android:id="@+id/resendVerificationLink"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="22dp"
         android:layout_marginTop="16dp"
         android:fontFamily="@font/roboto_regular"
         android:text="Resend Verification Email"
         android:textColor="@color/primary_blue"
         android:textSize="16sp"
+        android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/registerLink" />

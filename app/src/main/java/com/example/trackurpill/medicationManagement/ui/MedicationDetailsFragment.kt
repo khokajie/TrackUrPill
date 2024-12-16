@@ -410,10 +410,14 @@ class MedicationDetailsFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_edit_medication, null)
 
+        // Non-Editable Fields (TextInputEditText with enabled=false)
         val medicationName = dialogView.findViewById<TextInputEditText>(R.id.medicationName)
         val dosage = dialogView.findViewById<TextInputEditText>(R.id.dosage)
+
+        // Editable Fields
         val expirationDate = dialogView.findViewById<TextInputEditText>(R.id.expirationDate)
         val stockLevel = dialogView.findViewById<TextInputEditText>(R.id.stockLevel)
+
         val saveButton = dialogView.findViewById<MaterialButton>(R.id.dialogSaveButton)
         val cancelButton = dialogView.findViewById<MaterialButton>(R.id.dialogCancelButton)
 
@@ -426,6 +430,7 @@ class MedicationDetailsFragment : Fragment() {
             stockLevel.setText(it.stockLevel.toString())
         }
 
+        // Show Date Picker when expirationDate is clicked
         expirationDate.setOnClickListener {
             showDatePickerDialog(expirationDate)
         }
@@ -436,7 +441,7 @@ class MedicationDetailsFragment : Fragment() {
             .create()
 
         saveButton.setOnClickListener {
-            updateMedication(dialog, medicationName, dosage, expirationDate, stockLevel)
+            updateMedication(dialog, expirationDate, stockLevel)
         }
 
         cancelButton.setOnClickListener {
@@ -445,6 +450,7 @@ class MedicationDetailsFragment : Fragment() {
 
         dialog.show()
     }
+
 
     private fun showDatePickerDialog(expirationDate: TextInputEditText) {
         val calendar = Calendar.getInstance()
@@ -468,41 +474,47 @@ class MedicationDetailsFragment : Fragment() {
 
     private fun updateMedication(
         dialog: AlertDialog,
-        medicationName: TextInputEditText,
-        dosage: TextInputEditText,
         expirationDate: TextInputEditText,
         stockLevel: TextInputEditText
     ) {
-        val updatedName = medicationName.text.toString().trim()
-        val updatedDosage = dosage.text.toString().trim()
         val updatedExpirationDate = expirationDate.text.toString().trim()
         val updatedStockLevel = stockLevel.text.toString().trim()
 
-        if (updatedName.isEmpty() || updatedDosage.isEmpty() ||
-            updatedExpirationDate.isEmpty() || updatedStockLevel.isEmpty()
-        ) {
-            Toast.makeText(requireContext(), "All fields are required", Toast.LENGTH_SHORT).show()
+        if (updatedStockLevel.isEmpty()) {
+            Toast.makeText(
+                requireContext(),
+                "Stock Level is required.",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
-        if (updatedStockLevel.toIntOrNull() == null) {
-            Toast.makeText(requireContext(), "Stock level must be a number", Toast.LENGTH_SHORT).show()
+        val stockLevelInt = updatedStockLevel.toIntOrNull()
+        if (stockLevelInt == null) {
+            Toast.makeText(requireContext(), "Stock Level must be a valid number.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val updatedMedication = medicationVM.get(medicationId)?.copy(
-            medicationName = updatedName,
-            dosage = updatedDosage,
-            expirationDate = updatedExpirationDate,
-            stockLevel = updatedStockLevel.toInt()
+        val existingMedication = medicationVM.get(medicationId)
+        if (existingMedication == null) {
+            Toast.makeText(requireContext(), "Medication not found.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val updatedMedication = existingMedication.copy(
+            expirationDate = if (updatedExpirationDate.isEmpty()) {
+                existingMedication.expirationDate // Retain existing expiration date
+            } else {
+                updatedExpirationDate
+            },
+            stockLevel = stockLevelInt
         )
 
-        updatedMedication?.let {
-            medicationVM.setMedication(it)
-            Toast.makeText(requireContext(), "Medication updated", Toast.LENGTH_SHORT).show()
-            dialog.dismiss()
-        }
+        medicationVM.setMedication(updatedMedication)
+        Toast.makeText(requireContext(), "Medication updated successfully.", Toast.LENGTH_SHORT).show()
+        dialog.dismiss()
     }
+
 
     private fun deleteMedication() {
         AlertDialog.Builder(requireContext())
