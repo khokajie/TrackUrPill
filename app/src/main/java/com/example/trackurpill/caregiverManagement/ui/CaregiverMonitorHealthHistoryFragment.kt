@@ -1,4 +1,4 @@
-package com.example.trackurpill.healthTrackingManagement.ui
+package com.example.trackurpill.caregiverManagement.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class HealthHistoryFragment : Fragment() {
+class CaregiverMonitorHealthHistoryFragment : Fragment() {
 
     private lateinit var binding: FragmentHealthHistoryBinding
     private val healthHistoryVM: HealthHistoryViewModel by activityViewModels()
@@ -38,7 +38,7 @@ class HealthHistoryFragment : Fragment() {
 
         binding.recyclerViewHealthRecords.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = this@HealthHistoryFragment.adapter
+            adapter = this@CaregiverMonitorHealthHistoryFragment.adapter
         }
 
 
@@ -80,12 +80,7 @@ class HealthHistoryFragment : Fragment() {
         }
 
         // Floating Action Button to add a new health record
-        binding.fabAddHealthRecord.setOnClickListener {
-            nav.navigate(
-                R.id.addHealthHistoryFragment,
-                Bundle().apply { putString("patientId", patientId) }
-            )
-        }
+        binding.fabAddHealthRecord.visibility = View.GONE
 
         return binding.root
     }

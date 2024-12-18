@@ -91,7 +91,7 @@ class NotificationViewModel(app: Application) : AndroidViewModel(app) {
 
                 // Update status to 'dismissed'
                 val updatedNotification = notification.copy(
-                    status = "Dismiss",
+                    status = "Dismissed",
                 )
 
                 // Update the Notification document

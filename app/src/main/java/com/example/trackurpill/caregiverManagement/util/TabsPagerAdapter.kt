@@ -2,9 +2,10 @@ import android.os.Bundle
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import com.example.trackurpill.healthTrackingManagement.ui.HealthHistoryFragment
-import com.example.trackurpill.medicationManagement.ui.MedicationLogFragment
-import com.example.trackurpill.medicationManagement.ui.PatientMedicationFragment
+import com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorHealthHistoryFragment
+import com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationFragment
+import com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationLogFragment
+
 
 class TabsPagerAdapter(
     fragmentActivity: FragmentActivity,
@@ -21,9 +22,9 @@ class TabsPagerAdapter(
 
     override fun createFragment(position: Int): Fragment {
         val fragment = when (position) {
-            0 -> PatientMedicationFragment()
-            1 -> HealthHistoryFragment()
-            2 -> MedicationLogFragment()
+            0 -> CaregiverMonitorMedicationFragment()
+            1 -> CaregiverMonitorHealthHistoryFragment()
+            2 -> CaregiverMonitorMedicationLogFragment()
             else -> throw IllegalArgumentException("Invalid tab position")
         }
 

@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.trackurpill.data.MedicationLog
 import com.example.trackurpill.data.Notification
@@ -19,6 +20,9 @@ import com.example.trackurpill.medicationManagement.data.ReminderViewModel
 import com.example.trackurpill.notification.data.NotificationViewModel
 import com.example.trackurpill.notification.util.NotificationAdapter
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.UUID
 
@@ -74,20 +78,26 @@ class NotificationFragment : Fragment() {
                             userId = medication.userId
                         )
 
-                        // Mark medication as taken
-                        medicationVM.markMedicationAsTaken(medication.medicationId, medication.dosage)
+                        // Launch a coroutine to handle the marking and subsequent steps
+                        lifecycleScope.launch {
+                            // Call markMedicationAsTaken and await the result
+                            val success = withContext(Dispatchers.IO) {
+                                medicationVM.markMedicationAsTaken(medication.medicationId, medication.userId, medication.dosage)
+                            }
 
-                        // Update notification status
-                        notificationVM.takenReminder(notification.notificationId)
+                            if (success) {
+                                // Proceed with updating notification status, setting log, etc.
+                                notificationVM.takenReminder(notification.notificationId)
+                                logVM.setLog(medicationLog)
+                                cancelSystemNotification(notification.notificationId)
 
-                        // Set the MedicationLog
-                        logVM.setLog(medicationLog)
-
-                        // Cancel the system notification
-                        cancelSystemNotification(notification.notificationId)
-
-                        requireActivity().runOnUiThread {
-                            Toast.makeText(requireContext(), "Stock updated and log recorded.", Toast.LENGTH_SHORT).show()
+                                // Show success Toast
+                                Toast.makeText(requireContext(), "Stock updated and log recorded.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                // Show failure Toast and do not proceed
+                                notificationVM.dismissReminder(notification.notificationId)
+                                Toast.makeText(requireContext(), "Failed to mark medication as taken.", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 }
@@ -105,8 +115,6 @@ class NotificationFragment : Fragment() {
                     notification.notificationId,
                     notification.senderId
                 ) { success, message ->
-                    // Cancel the system notification
-                    cancelSystemNotification(notification.notificationId)
 
                     // Show a Toast message based on the success flag
                     requireActivity().runOnUiThread {
@@ -123,8 +131,6 @@ class NotificationFragment : Fragment() {
                     notification.notificationId,
                     notification.senderId
                 ) { success, message ->
-                    // Cancel the system notification
-                    cancelSystemNotification(notification.notificationId)
 
                     // Show a Toast message based on the success flag
                     requireActivity().runOnUiThread {
@@ -157,9 +163,6 @@ class NotificationFragment : Fragment() {
         return binding.root
     }
 
-    /**
-     * Cancels the system notification based on notificationId.
-     */
     private fun cancelSystemNotification(notificationId: String) {
         val notificationManager =
             requireContext().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

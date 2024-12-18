@@ -89,6 +89,37 @@
         android:label="Patient Details"
         tools:layout="@layout/fragment_caregiver_patient_details" />
 
+    <fragment
+        android:id="@+id/caregiverMonitorMedicationFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationFragment"
+        android:label="Monitor Patient Details"
+        tools:layout="@layout/fragment_patient_medication" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorAddMedicationFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorAddMedicationFragment"
+        android:label="Monitor Add Medication"
+        tools:layout="@layout/fragment_add_patient_medication" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorMedicationDetailsFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationDetailsFragment"
+        android:label="Monitor Add Medication"
+        tools:layout="@layout/fragment_medication_details" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorHealthHistoryFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorHealthHistoryFragment"
+        android:label="Monitor Health History"
+        tools:layout="@layout/fragment_health_history" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorMedicationLogFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationLogFragment"
+        android:label="Monitor Medication Log"
+        tools:layout="@layout/fragment_medication_log" />
+
+
     <!-- Define Global Actions -->
     <action
         android:id="@+id/action_global_notificationFragment"

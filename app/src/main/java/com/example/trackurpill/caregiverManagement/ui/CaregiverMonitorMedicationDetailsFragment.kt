@@ -1,18 +1,18 @@
-package com.example.trackurpill.medicationManagement.ui
+package com.example.trackurpill.caregiverManagement.ui
 
 import android.app.DatePickerDialog
+import android.content.res.Resources
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.DatePicker
-import android.widget.Spinner
-import android.widget.TimePicker
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
@@ -29,13 +29,10 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.functions.HttpsCallableResult
-import com.google.firebase.functions.ktx.functions
-import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MedicationDetailsFragment : Fragment() {
+class CaregiverMonitorMedicationDetailsFragment : Fragment() {
 
     private lateinit var binding: FragmentMedicationDetailsBinding
     private val nav by lazy { findNavController() }
@@ -50,6 +47,11 @@ class MedicationDetailsFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentMedicationDetailsBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         medicationId = arguments?.getString("medicationId") ?: ""
         currentUserId = FirebaseAuth.getInstance().currentUser?.uid.toString()
@@ -57,12 +59,14 @@ class MedicationDetailsFragment : Fragment() {
         // Fetch the user role
         loggedInUserVM.fetchUserRole()
 
-        setupRoleObserver() // Set up observer for user role
+        setupRoleObserver()
         setupUI()
         observeMedicationDetails()
 
-
-        return binding.root
+        // Apply all adjustments
+        adjustViewSizes()
+        adjustTextSizes()
+        adjustMarginsAndPadding()
     }
 
     private fun setupRoleObserver() {
@@ -271,7 +275,6 @@ class MedicationDetailsFragment : Fragment() {
             .show()
     }
 
-
     private fun scheduleReminderNotification(reminder: Reminder, frequency: String) {
         val medicationName = binding.medicationName.text.toString()
         val dosageText = binding.medicationDosage.text.toString().removePrefix("Dosage: ").trim()
@@ -348,6 +351,7 @@ class MedicationDetailsFragment : Fragment() {
                     }
                 }
             }
+
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
@@ -415,7 +419,6 @@ class MedicationDetailsFragment : Fragment() {
             }
         }
     }
-
 
     private fun showEditMedicationDialog() {
         val dialogView = LayoutInflater.from(requireContext())
@@ -587,9 +590,132 @@ class MedicationDetailsFragment : Fragment() {
         }
     }
 
-    companion object {
-        private const val TAG = "MedicationDetailsFragment"
+    /**
+     * Adjusts the sizes of various views to make the UI smaller.
+     */
+    private fun adjustViewSizes() {
+        // Initialize ConstraintSet
+        val constraintLayout = binding.root as ConstraintLayout
+        val constraintSet = ConstraintSet()
+        constraintSet.clone(constraintLayout)
+
+        // Adjust Medication Card Width to 90% of parent
+        constraintSet.constrainPercentWidth(binding.medicationCard.id, 0.7f) // 90% width
+
+        // Set height to wrap_content
+        constraintSet.constrainHeight(
+            R.id.medicationCard,
+            ConstraintSet.WRAP_CONTENT
+        )
+
+        // Apply the constraints
+        constraintSet.applyTo(constraintLayout)
+
+        binding.root.setPadding(0, 0, 0, 0)
+
+        // Adjust Medication Photo Size
+        val medicationPhotoView = binding.medicationPhoto
+        val photoParams = medicationPhotoView.layoutParams
+        photoParams.width = 80.dpToPx() // Reduced from 120dp to 80dp
+        photoParams.height = 80.dpToPx()
+        medicationPhotoView.layoutParams = photoParams
+
+        // Adjust Send Reminder Button Size
+        val sendReminderButton = binding.sendReminderButton
+        val sendButtonParams = sendReminderButton.layoutParams
+        sendButtonParams.height = 40.dpToPx() // Reduced height
+        sendReminderButton.layoutParams = sendButtonParams
+
+        // Adjust Edit and Delete Medication Buttons
+        val editButton = binding.editMedicationButton
+        val editButtonParams = editButton.layoutParams
+        editButtonParams.height = 40.dpToPx()
+        editButton.layoutParams = editButtonParams
+
+        val deleteButton = binding.deleteMedicationButton
+        val deleteButtonParams = deleteButton.layoutParams
+        deleteButtonParams.height = 40.dpToPx()
+        deleteButton.layoutParams = deleteButtonParams
+
+        // Adjust Add Reminder Button Size
+        val addReminderButton = binding.addReminderButton
+        val addButtonParams = addReminderButton.layoutParams
+        addButtonParams.width = 150.dpToPx() // Specific width
+        addButtonParams.height = 40.dpToPx()
+        addReminderButton.layoutParams = addButtonParams
+
     }
 
+    /**
+     * Adjusts the text sizes of various TextViews and Buttons to make the UI smaller.
+     */
+    private fun adjustTextSizes() {
+        // Reduce Text Sizes
+        binding.medicationName.textSize = 16f // From 18sp to 16sp
+        binding.medicationDosage.textSize = 14f // From 16sp to 14sp
+        binding.expirationDate.textSize = 14f
+        binding.stockLevel.textSize = 14f
+        binding.instruction.textSize = 14f
 
+        // Adjust Button Text Sizes
+        binding.sendReminderButton.textSize = 14f
+        binding.editMedicationButton.textSize = 14f
+        binding.deleteMedicationButton.textSize = 14f
+        binding.addReminderButton.textSize = 14f
+    }
+
+    /**
+     * Adjusts the margins and padding of various views to make the UI more compact.
+     */
+    private fun adjustMarginsAndPadding() {
+        // Adjust Medication Card Margins
+        val medicationCardView = binding.medicationCard
+        val cardLayoutParams = medicationCardView.layoutParams as ConstraintLayout.LayoutParams
+        cardLayoutParams.setMargins(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx()) // Reduced from 16dp
+        medicationCardView.layoutParams = cardLayoutParams
+
+        // Adjust Inner ConstraintLayout Padding
+        val innerLayout = binding.medicationCard.findViewById<ConstraintLayout>(R.id.medicationDetailsGroup)
+        innerLayout.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx()) // Reduced from 16dp
+
+        // Adjust Edit/Delete Button Group Margins
+        val editDeleteButtonGroup = binding.editDeleteButtonGroup
+        val groupLayoutParams = editDeleteButtonGroup.layoutParams as ConstraintLayout.LayoutParams
+        groupLayoutParams.setMargins(16.dpToPx(), 8.dpToPx(), 16.dpToPx(), 8.dpToPx())
+        editDeleteButtonGroup.layoutParams = groupLayoutParams
+
+        // Adjust RecyclerView Margins
+        val recyclerView = binding.recyclerViewReminders
+        val recyclerParams = recyclerView.layoutParams as ConstraintLayout.LayoutParams
+        recyclerParams.setMargins(0, 8.dpToPx(), 0, 8.dpToPx())
+        recyclerView.layoutParams = recyclerParams
+
+        // Adjust Add Reminder Button Margins
+        val addReminderButton = binding.addReminderButton
+        val addButtonParams = addReminderButton.layoutParams as ConstraintLayout.LayoutParams
+        addButtonParams.setMargins(0, 8.dpToPx(), 0, 8.dpToPx())
+        addReminderButton.layoutParams = addButtonParams
+    }
+
+    /**
+     * Extension function to convert dp to pixels.
+     */
+    private fun Int.dpToPx(): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            this.toFloat(),
+            Resources.getSystem().displayMetrics
+        ).toInt()
+    }
+
+    companion object {
+        private const val ARG_MEDICATION_ID = "medicationId"
+        private const val TAG = "MedicationDetailsFragment"
+
+        fun newInstance(medicationId: String) = CaregiverMonitorMedicationDetailsFragment().apply {
+            arguments = Bundle().apply {
+                putString(ARG_MEDICATION_ID, medicationId)
+            }
+        }
+    }
 }

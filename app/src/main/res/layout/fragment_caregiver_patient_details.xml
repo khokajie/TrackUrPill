@@ -18,11 +18,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- LinearLayout inside CardView to arrange image and name horizontally -->
+        <!-- ConstraintLayout inside CardView to arrange image and name -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:padding="16dp">
 
             <!-- ImageView to display the patient's image -->
@@ -30,7 +29,6 @@
                 android:id="@+id/patientImageView"
                 android:layout_width="50dp"
                 android:layout_height="50dp"
-                android:layout_gravity="center_vertical"
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_profile"
                 app:layout_constraintStart_toStartOf="parent"
@@ -41,16 +39,15 @@
                 android:id="@+id/patientNameTextView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
                 android:layout_marginStart="16dp"
-                android:layout_weight="1"
                 android:text="Patient Name"
-                android:textSize="20dp"
+                android:textSize="20sp"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
                 android:textColor="@color/black"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/patientImageView"
-                app:layout_constraintTop_toTopOf="@+id/patientImageView" />
+                app:layout_constraintStart_toEndOf="@id/patientImageView"
+                app:layout_constraintTop_toTopOf="@id/patientImageView"
+                app:layout_constraintBottom_toBottomOf="@id/patientImageView"
+                app:layout_constraintEnd_toEndOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

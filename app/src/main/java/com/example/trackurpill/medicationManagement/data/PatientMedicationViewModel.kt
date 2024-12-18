@@ -10,13 +10,16 @@ import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.MEDICATION
 import com.example.trackurpill.data.Medication
 import com.example.trackurpill.notification.data.NotificationViewModel
+import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.toObjects
+import com.google.firebase.functions.functions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -153,21 +156,14 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Extracts the numerical dosage from a dosage string.
-     * Example: "2 Tablet" -> 2
-     */
     private fun extractDosageNumber(dosageStr: String): Int {
         val regex = Regex("(\\d+)")
         val matchResult = regex.find(dosageStr)
         return matchResult?.groups?.get(1)?.value?.toIntOrNull() ?: 0
     }
 
-    /**
-     * Marks medication as taken by deducting the dosage from stockLevel.
-     */
-    fun markMedicationAsTaken(medicationId: String, dosageStr: String) {
-        CoroutineScope(Dispatchers.IO).launch {
+    suspend fun markMedicationAsTaken(medicationId: String, userId: String, dosageStr: String): Boolean {
+        return withContext(Dispatchers.IO) {
             try {
                 // Extract dosage number
                 val dosage = extractDosageNumber(dosageStr)
@@ -186,21 +182,62 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
 
                 // Check stock availability
                 if (medication.stockLevel < dosage) {
+                    // Stock is insufficient, call cloud function to notify user
+                    notifyLowStock(userId, medication.medicationName, medication.stockLevel)
                     throw FirebaseFirestoreException("Insufficient medication stock.", FirebaseFirestoreException.Code.ABORTED)
                 }
 
                 // Deduct dosage from stockLevel
-                val updatedMedication = medication.copy(stockLevel = medication.stockLevel - dosage)
+                val updatedStockLevel = medication.stockLevel - dosage
+                MEDICATION.document(medicationId)
+                    .update("stockLevel", updatedStockLevel)
+                    .await()
+                Log.d("NotificationActionReceiver", "Medication stock updated successfully.")
 
-                // Update the Medication document
-                setMedication(updatedMedication)
+                if (updatedStockLevel < 5) {
+                    // Stock is insufficient, call cloud function to notify user
+                    notifyLowStock(userId, medication.medicationName, updatedStockLevel)
+                }
 
-
+                true // Indicate success
             } catch (e: FirebaseFirestoreException) {
                 Log.e("PatientMedicationVM", "Error marking medication as taken: ", e)
+                false // Indicate failure
             } catch (e: Exception) {
                 Log.e("PatientMedicationVM", "Unexpected error: ", e)
+                false // Indicate failure
             }
+        }
+    }
+
+    private suspend fun notifyLowStock(userId: String, medicationName: String, currentStock: Int) {
+        try {
+            // Initialize Firebase Functions
+            val functions = Firebase.functions
+
+            // Prepare data to send to the cloud function
+            val data = hashMapOf(
+                "userId" to userId,
+                "medicationName" to medicationName,
+                "currentStock" to currentStock
+            )
+
+            // Call the cloud function named "notifyLowMedicationStock"
+            val result = functions
+                .getHttpsCallable("notifyLowMedicationStock")
+                .call(data)
+                .await()
+
+            // Optionally handle the result returned by the cloud function
+            val success = result.data as? Boolean ?: false
+            if (success) {
+                Log.d("PatientMedicationVM", "Low stock notification sent successfully.")
+            } else {
+                Log.e("PatientMedicationVM", "Failed to send low stock notification.")
+            }
+        } catch (e: Exception) {
+            Log.e("PatientMedicationVM", "Error calling notifyLowMedicationStock cloud function: ", e)
+            // Handle exceptions related to the cloud function call
         }
     }
 

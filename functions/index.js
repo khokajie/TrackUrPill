@@ -1,5 +1,3 @@
-// File: functions/index.js
-
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const moment = require("moment-timezone");
@@ -925,7 +923,7 @@ exports.responseInvitation = functions.https.onCall(async (data, context) => {
 
     const responseMessage =
       response === "accept" ?
-        `${patientUserName} has accepted your invitation. Check your app to view the response.`:
+        `${patientUserName} has accepted your invitation. Check your app to view the response.` :
         `${patientUserName} has declined your invitation. Check your app to view the response.`;
 
     const responseNotificationData = {
@@ -996,3 +994,170 @@ exports.responseInvitation = functions.https.onCall(async (data, context) => {
     );
   }
 });
+
+/**
+ * Callable function to notify user about low medication stock.
+ * @param {object} data - Contains userId, medicationName, and currentStock.
+ * @param {object} context - Authentication context.
+ * @returns {object} - Success or error message.
+ */
+exports.notifyLowMedicationStock = functions.https.onCall(
+  async (data, context) => {
+    try {
+      console.log("Raw request data:", JSON.stringify(data));
+
+      // 1. Authentication Check
+      if (!context.auth) {
+        throw new functions.https.HttpsError(
+          "unauthenticated",
+          "User must be authenticated.",
+        );
+      }
+
+      const { userId, medicationName, currentStock } = data;
+
+      // 2. Input Validation
+      if (!userId || typeof userId !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Valid userId is required.",
+        );
+      }
+
+      if (!medicationName || typeof medicationName !== "string") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Valid medicationName is required.",
+        );
+      }
+
+      if (currentStock === undefined || typeof currentStock !== "number") {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "Valid currentStock is required.",
+        );
+      }
+
+      console.log(
+        `Authenticated userId: ${userId} requesting low stock notification for medication: 
+${medicationName} with currentStock: ${currentStock}`,
+      );
+
+      // 3. Retrieve User's FCM Token using Helper Function
+      const userFcmToken = await getUserFcmToken(userId);
+
+      // 4. Prepare Notification Payload
+      const notificationId = admin
+        .firestore()
+        .collection("Notification")
+        .doc().id; // Generate a new notification ID
+
+      const notificationData = {
+        type: "low_stock",
+        userId: userId, // Recipient
+        senderId: "system", // Sender (could be "system" or another identifier)
+        message: `Your stock for ${medicationName} is low (${currentStock} left). Please consider restocking.`,
+        status: "Sent",
+        timestamp: admin.firestore.Timestamp.now(),
+      };
+
+      // Optionally, store the notification in Firestore
+      await admin
+        .firestore()
+        .collection("Notification")
+        .doc(notificationId)
+        .set(notificationData);
+
+      console.log(
+        `Notification data stored with notificationId: ${notificationId}`,
+      );
+
+      // 5. Prepare Data Payload for FCM
+      const dataPayload = {
+        type: "low_stock",
+        notificationId: notificationId,
+        userId: userId,
+        senderId: "system",
+        message: notificationData.message,
+        title: "Low Medication Stock",
+        body: notificationData.message,
+      };
+
+      // 6. Prepare FCM Message
+      const fcmMessage = {
+        token: userFcmToken,
+        data: dataPayload,
+        android: {
+          priority: "high",
+        },
+      };
+
+      // 7. Send Notification via FCM
+      const fcmResponse = await admin.messaging().send(fcmMessage);
+
+      console.log(
+        `FCM Notification sent to userId: ${userId} - MessageId: ${fcmResponse}`,
+      );
+
+      return {
+        success: true,
+        message: "Low stock notification sent successfully.",
+      };
+    } catch (error) {
+      console.error("Error in notifyLowMedicationStock:", error);
+      if (error instanceof functions.https.HttpsError) {
+        throw error;
+      }
+      throw new functions.https.HttpsError(
+        "internal",
+        error.message || "An unknown error occurred.",
+      );
+    }
+  },
+);
+
+/**
+ * Helper function to retrieve the FCM token for a given userId by checking both "Patient" and "Caregiver" collections.
+ * @param {string} userId - The ID of the user.
+ * @return {Promise<string>} - The FCM token of the user.
+ * @throws {functions.https.HttpsError} - Throws error if user not found or FCM token is missing.
+ */
+async function getUserFcmToken(userId) {
+  console.log(`Retrieving user document for userId: ${userId}`);
+
+  // Attempt to fetch from "Patient" collection
+  let userDoc = await admin.firestore().collection("Patient").doc(userId).get();
+
+  // If not found in "Patient", try "Caregiver"
+  if (!userDoc.exists) {
+    console.log(
+      `UserId: ${userId} not found in "Patient". Checking "Caregiver" collection.`,
+    );
+    userDoc = await admin.firestore().collection("Caregiver").doc(userId).get();
+  }
+
+  // If still not found, throw an error
+  if (!userDoc.exists) {
+    console.error(
+      `UserId: ${userId} not found in both "Patient" and "Caregiver" collections.`,
+    );
+    throw new functions.https.HttpsError(
+      "not-found",
+      "User not found in Patient or Caregiver collections.",
+    );
+  }
+
+  const userData = userDoc.data();
+
+  // Check if FCM token exists
+  if (!userData || !userData.fcmToken) {
+    console.error(`UserId: ${userId} does not have an FCM token.`);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "User does not have a valid FCM token.",
+    );
+  }
+
+  console.log(`FCM token retrieved for userId: ${userId}`);
+  return userData.fcmToken;
+}

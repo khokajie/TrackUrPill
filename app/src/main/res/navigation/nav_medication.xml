@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_medication"
+    app:startDestination="@id/caregiverMonitorMedicationFragment">
+
+    <fragment
+        android:id="@+id/caregiverMonitorMedicationFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationFragment"
+        android:label="Medication">
+        <action
+            android:id="@+id/action_medication_to_addMedication"
+            app:destination="@id/caregiverMonitorAddMedicationFragment" />
+        <action
+            android:id="@+id/action_medication_to_medicationDetails"
+            app:destination="@id/caregiverMonitorMedicationDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/caregiverMonitorAddMedicationFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorAddMedicationFragment"
+        android:label="Add Medication" />
+
+    <fragment
+        android:id="@+id/caregiverMonitorMedicationDetailsFragment"
+        android:name="com.example.trackurpill.caregiverManagement.ui.CaregiverMonitorMedicationDetailsFragment"
+        android:label="Medication Details" />
+
+</navigation>

@@ -83,21 +83,35 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // Step 1: Fetch the Medication document
                 val medicationSnapshot = db.collection("Medication").document(medicationId).get().await()
                 if (!medicationSnapshot.exists()) {
-                    throw FirebaseFirestoreException("Medication not found.", FirebaseFirestoreException.Code.NOT_FOUND)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Medication not found.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
                 }
 
                 val medication = medicationSnapshot.toObject(Medication::class.java)
-                    ?: throw FirebaseFirestoreException("Failed to parse Medication.", FirebaseFirestoreException.Code.UNKNOWN)
+                    ?: run {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed to parse medication data.", Toast.LENGTH_SHORT).show()
+                        }
+                        return@launch
+                    }
 
                 // Step 2: Extract dosage number
                 val dosageNumber = extractDosageNumber(dosageStr)
                 if (dosageNumber <= 0) {
-                    throw FirebaseFirestoreException("Invalid dosage value.", FirebaseFirestoreException.Code.INVALID_ARGUMENT)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Invalid dosage value.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
                 }
 
                 // Step 3: Check stock availability
                 if (medication.stockLevel < dosageNumber) {
-                    throw FirebaseFirestoreException("Insufficient medication stock.", FirebaseFirestoreException.Code.ABORTED)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Insufficient medication stock.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
                 }
 
                 // Step 4: Deduct dosage from stockLevel
@@ -107,7 +121,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     .await()
                 Log.d("NotificationActionReceiver", "Medication stock updated successfully.")
 
-                // Step 5: Create MedicationLog
+                // Step 5: If stock level < 5, notify the user
+                if (updatedStockLevel < 5) {
+                    notifyUserLowStock(medication.userId, medication.medicationName, updatedStockLevel)
+                }
+
+                // Step 6: Create MedicationLog
                 val medicationLog = MedicationLog(
                     logId = UUID.randomUUID().toString(),
                     medicationId = medicationId,
@@ -119,28 +138,28 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 db.collection("MedicationLog").document(medicationLog.logId).set(medicationLog).await()
                 Log.d("NotificationActionReceiver", "MedicationLog created successfully.")
 
-                // Step 6: Update Notification status to 'Taken'
+                // Step 7: Update Notification status to 'Taken'
                 db.collection("Notification").document(notificationId)
                     .update("status", "Taken")
                     .await()
                 Log.d("NotificationActionReceiver", "Notification status updated to 'Taken'.")
 
-                // Provide user feedback
-                CoroutineScope(Dispatchers.Main).launch {
+                // Step 8: Cancel the notification
+                cancelNotification(context, notificationId)
+
+                // Provide user feedback on the Main thread
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Medication marked as taken.", Toast.LENGTH_SHORT).show()
                 }
 
-                // Step 7: Cancel the notification
-                cancelNotification(context, notificationId)
-
             } catch (e: FirebaseFirestoreException) {
                 Log.e("NotificationActionReceiver", "Firestore error: ", e)
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 Log.e("NotificationActionReceiver", "Unexpected error: ", e)
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "An unexpected error occurred.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -211,5 +230,33 @@ class NotificationActionReceiver : BroadcastReceiver() {
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(notificationId.hashCode())
         Log.d("NotificationActionReceiver", "Notification canceled with ID: ${notificationId.hashCode()}")
+    }
+
+    private suspend fun notifyUserLowStock(userId: String, medicationName: String, currentStock: Int) {
+        try {
+            // Prepare data to send to the cloud function
+            val data = hashMapOf(
+                "userId" to userId,
+                "medicationName" to medicationName,
+                "currentStock" to currentStock
+            )
+
+            // Call the cloud function named "notifyLowMedicationStock"
+            val result = functions
+                .getHttpsCallable("notifyLowMedicationStock")
+                .call(data)
+                .await()
+
+            // Optionally handle the result returned by the cloud function
+            val success = (result.data as? Map<*, *>)?.get("success") as? Boolean ?: false
+
+            if (success) {
+                Log.d("NotificationActionReceiver", "Low stock notification sent successfully.")
+            } else {
+                Log.e("NotificationActionReceiver", "Failed to send low stock notification.")
+            }
+        } catch (e: Exception) {
+            Log.e("NotificationActionReceiver", "Error calling notifyLowMedicationStock cloud function: ", e)
+        }
     }
 }

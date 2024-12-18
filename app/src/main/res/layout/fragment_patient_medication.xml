@@ -62,4 +62,16 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:tint="@android:color/white" />
 
+    <!-- FrameLayout for hosting child fragments (details/add), matching RecyclerView constraints -->
+    <FrameLayout
+        android:id="@+id/childFragmentContainer"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/searchViewMedications"
+        app:layout_constraintBottom_toTopOf="@id/fabAddMedication"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

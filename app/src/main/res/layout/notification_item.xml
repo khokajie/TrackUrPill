@@ -54,6 +54,19 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/dateTextView" />
 
+        <!-- Notification Status -->
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Status"
+            android:textColor="@android:color/holo_red_dark"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toStartOf="@id/iconImageView"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/messageTextView" />
+
         <!-- Accept Button -->
         <Button
             android:id="@+id/acceptButton"
@@ -67,7 +80,7 @@
             android:visibility="gone"
             app:cornerRadius="8dp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/messageTextView" />
+            app:layout_constraintTop_toBottomOf="@+id/statusTextView" />
 
 
         <!-- Reject Button -->
