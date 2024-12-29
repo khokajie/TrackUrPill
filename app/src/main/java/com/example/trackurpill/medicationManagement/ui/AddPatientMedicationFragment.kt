@@ -1,4 +1,3 @@
-// AddPatientMedicationFragment.kt
 package com.example.trackurpill.medicationManagement.ui
 
 import android.Manifest
@@ -64,6 +63,9 @@ class AddPatientMedicationFragment : Fragment() {
     private lateinit var photoURI: Uri
     private var loadingDialog: AlertDialog? = null
 
+    // Add a variable to hold the current medication being added
+    private var currentMedication: Medication? = null
+
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
     }
@@ -111,7 +113,7 @@ class AddPatientMedicationFragment : Fragment() {
                 )
             ) return@setOnClickListener
 
-            // Create Medication object
+            // Create Medication object without interactions
             val medication = Medication(
                 medicationId = UUID.randomUUID().toString(),
                 medicationName = medicationName,
@@ -121,43 +123,52 @@ class AddPatientMedicationFragment : Fragment() {
                 instruction = instructions,
                 medicationPhoto = medicationPhotoBlob,
                 medicationStatus = "Active",
-                userId = targetUserId.toString()
+                userId = targetUserId.toString(),
+                interactions = emptyList() // Initialize with empty list
             )
 
-            // Save medication
+            // Assign to currentMedication
+            currentMedication = medication
+
+            // Save medication first to Firestore
             medicationVM.setMedication(medication)
 
             // Retrieve all existing medications for the user
             val existingMedications = medicationVM.getAllByUser(targetUserId.toString()).toMutableList()
 
-            // Identify the newly added medication
-            val newlyAddedMedication = medication
-
             val promptText = """
-                Identify any **clinically significant** interactions between the newly added medication and the existing medications.
-                For each significant interaction found, provide a brief detail and a corresponding suggestion or solution.
-                **Only** include interactions that require medical attention or dosage adjustments.
-                (give max 2 sentences for both interaction and solution)
-                
-                Format each interaction as follows:
-                
-                MedicationA and MedicationB:
-                - Interaction detail.
-                - Suggestion/Solution: [Your suggestion here]
-                
-                Example:
-                
-                Ibuprofen and Warfarin:
-                - Ibuprofen can increase the risk of bleeding when taken with warfarin.
-                - Suggestion/Solution: Monitor INR levels closely and consider alternative pain relievers.
-                
-                If no clinically significant interactions are found, respond with "No interactions found."
-                
-                Newly Added Medication: ${newlyAddedMedication.medicationName}
-                Existing Medications: ${existingMedications.joinToString(", ") { it.medicationName }}
-                
-                Response:
+            Identify any **clinically significant** interactions among the newly added medication and the existing medications.
+            
+            - **Clinically significant** means interactions requiring medical attention, dosage adjustments, or posing serious health risks.
+            - For each interaction found, provide exactly two short sentences: 
+              1) Interaction detail 
+              2) Suggestion/Solution.
+            
+            Use the format:
+            MedicationA and MedicationB:
+            - Interaction detail.
+            - Suggestion/Solution: [Your suggestion here]
+            
+            **Important**:
+            - If at least one pair has clinically significant interactions, list those pairs only.
+            - If **no** pairs have clinically significant interactions, your entire response must be:
+              No interactions found.
+            
+            ### Example (with interactions)
+            Ibuprofen and Warfarin:
+            - Ibuprofen can increase the risk of bleeding when taken with warfarin.
+            - Suggestion/Solution: Monitor INR levels closely and consider alternative pain relievers.
+            
+            ### Example (no interactions, for all meds)
+            No interactions found.
+            
+            ---
+            Newly Added Medication: ${medication.medicationName}
+            Existing Medications: ${existingMedications.joinToString(", ") { it.medicationName }}
+            
+            RESPONSE:
             """.trimIndent()
+
 
             // Create Parts with the Prompt
             val partsList = listOf(
@@ -172,9 +183,8 @@ class AddPatientMedicationFragment : Fragment() {
             // Prepare GeminiRequest with List<Content>
             val geminiRequest = GeminiRequest(contents = contentsList)
 
-
             // Initiate API call
-            geminiViewModel.generateContent(geminiRequest, "AIzaSyC_5oXR_z3oL2AxPhmS6dwIFDYv-2WdZOU")
+            geminiViewModel.generateContent(geminiRequest, "AIzaSyC_5oXR_z3oL2AxPhmS6dwIFDYv-2WdZOU") // Replace with your actual API key
 
             // Show loading dialog
             loadingDialog = AlertDialog.Builder(requireContext())
@@ -205,13 +215,23 @@ class AddPatientMedicationFragment : Fragment() {
                 // Parse the generated text into structured data
                 val interactions = parseInteractions(generatedText)
                 if (interactions.isNotEmpty()) {
-                    showCustomInteractionDialog(interactions)
+                    currentMedication?.let { newMed ->
+                        // 1. Update newly added medication with interactions
+                        val updatedNewMed = newMed.copy(interactions = interactions)
+                        medicationVM.setMedication(updatedNewMed)
+
+                        // 2. Also update existing medications' side
+                        updateExistingMedicationsSide(interactions, newMed.medicationName)
+
+                        // Show the interaction dialog
+                        showCustomInteractionDialog(interactions)
+                    }
                 } else {
                     showGeneratedContent("No interactions found.")
                 }
 
                 // Inform the user
-                Toast.makeText(requireContext(), "Content Generated Successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Interaction found!", Toast.LENGTH_SHORT).show()
             } else if (response != null) {
                 Toast.makeText(requireContext(), "No content generated.", Toast.LENGTH_SHORT).show()
                 nav.navigateUp()
@@ -228,6 +248,60 @@ class AddPatientMedicationFragment : Fragment() {
             errorMsg?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 nav.navigateUp()
+            }
+        }
+    }
+
+    private fun updateExistingMedicationsSide(
+        interactions: List<MedicationInteraction>,
+        newMedName: String
+    ) {
+        // 1. Retrieve all current medications from the ViewModel
+        val allMedications = medicationVM.getAll().toMutableList()
+
+        // 2. For each interaction, find the other medication’s name from medicationPair
+        //    The format is "Warfarin and Aspirin" or "Aspirin and Warfarin"
+        //    We'll check which side is the "other" medication.
+        for (interaction in interactions) {
+            val pair = interaction.medicationPair
+            // e.g., "Warfarin and Aspirin"
+            // Split by " and "
+            val meds = pair.split("and", ignoreCase = true)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+
+            if (meds.size == 2) {
+                val medA = meds[0]
+                val medB = meds[1]
+
+                // Identify which medication is the "other" one
+                val otherMedicationName = if (medA.equals(newMedName, ignoreCase = true)) {
+                    medB
+                } else {
+                    medA
+                }
+
+                // 3. Locate that "other" medication in allMedications
+                val existingMed = allMedications.find { it.medicationName.equals(otherMedicationName, ignoreCase = true) }
+                if (existingMed != null) {
+                    // Check if the interaction is already there
+                    val alreadyExists = existingMed.interactions.any {
+                        it.medicationPair.equals(pair, ignoreCase = true)
+                    }
+
+                    if (!alreadyExists) {
+                        // 4. Add the same interaction
+                        val updatedInteractions = existingMed.interactions + interaction
+                        val updatedMed = existingMed.copy(interactions = updatedInteractions)
+
+                        // 5. Save updated medication to Firestore
+                        medicationVM.setMedication(updatedMed)
+
+                        Log.d("updateExistingMedicationsSide", "Updated ${existingMed.medicationName} with interaction: $pair")
+                    }
+                } else {
+                    Log.d("updateExistingMedicationsSide", "No matching medication found for: $otherMedicationName")
+                }
             }
         }
     }
@@ -267,8 +341,6 @@ class AddPatientMedicationFragment : Fragment() {
         // Show the dialog
         dialog.show()
     }
-
-
 
     private fun parseInteractions(generatedText: String): List<MedicationInteraction> {
         // Check for the "No interactions found" response
@@ -443,16 +515,41 @@ class AddPatientMedicationFragment : Fragment() {
     private fun showImagePickerOptionsForPhoto() {
         val options = arrayOf("Take Photo", "Choose from Gallery")
 
-        val builder = AlertDialog.Builder(requireContext())
-        builder.setTitle("Select Option")
-        builder.setItems(options) { dialog, which ->
-            when (which) {
-                0 -> captureImageFromCameraForPhoto()
-                1 -> pickImageFromGalleryForPhoto()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Select Option")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> onTakePhotoOptionSelected()  // <-- Use your new function
+                    1 -> pickImageFromGalleryForPhoto()
+                }
+            }
+            .show()
+    }
+
+    private fun onTakePhotoOptionSelected() {
+        // Check if we already have the camera permission
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permission is already granted; proceed with taking photo
+            captureImageFromCameraForPhoto()
+        } else {
+            // Request the permission
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private val requestCameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                // The user granted the permission.
+                // You can now safely launch the camera.
+                captureImageFromCameraForPhoto()
+            } else {
+                // The user denied the permission.
+                Toast.makeText(requireContext(), "Camera permission denied", Toast.LENGTH_SHORT).show()
             }
         }
-        builder.show()
-    }
 
     private fun captureImageFromCameraForPhoto() {
         val photoFile = createImageFile()
@@ -651,7 +748,7 @@ class AddPatientMedicationFragment : Fragment() {
         stockLevel: String,
         instructions: String,
 
-    ): Boolean {
+        ): Boolean {
         var isValid = true
 
         // Check if medication name is empty

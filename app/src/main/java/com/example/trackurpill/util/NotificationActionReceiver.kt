@@ -35,7 +35,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
         val action = intent.action
         val notificationId = intent.getStringExtra("notificationId")
-        val reminderId = intent.getStringExtra("reminderId")
         val type = intent.getStringExtra("type") // "reminder" or "invitation"
 
         Log.d("NotificationActionReceiver", "Received action: $action, type: $type")
@@ -46,10 +45,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     "ACTION_TAKE_MEDICATION" -> {
                         val medicationId = intent.getStringExtra("medicationId")
                         val dosageStr = intent.getStringExtra("dosage") ?: "1 Tablet"
-                        handleTakeMedication(context, reminderId, medicationId, dosageStr, notificationId)
+                        handleTakeMedication(context, medicationId, dosageStr, notificationId)
                     }
                     "ACTION_DISMISS_REMINDER" -> {
-                        handleDismissReminder(context, reminderId, notificationId)
+                        handleDismissReminder(context, notificationId)
                     }
                 }
             }
@@ -64,12 +63,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
      */
     private fun handleTakeMedication(
         context: Context,
-        reminderId: String?,
         medicationId: String?,
         dosageStr: String,
         notificationId: String?
     ) {
-        if (reminderId == null || medicationId == null || notificationId == null) {
+        if (medicationId == null || notificationId == null) {
             Toast.makeText(context, "Invalid action parameters.", Toast.LENGTH_SHORT).show()
             Log.e("NotificationActionReceiver", "Missing parameters for taking medication.")
             return
@@ -108,6 +106,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                 // Step 3: Check stock availability
                 if (medication.stockLevel < dosageNumber) {
+                    handleDismissReminder(context, notificationId)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Insufficient medication stock.", Toast.LENGTH_SHORT).show()
                     }
@@ -171,10 +170,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
      */
     private fun handleDismissReminder(
         context: Context,
-        reminderId: String?,
         notificationId: String?
     ) {
-        if (reminderId == null || notificationId == null) {
+        if (notificationId == null) {
             Toast.makeText(context, "Invalid action parameters.", Toast.LENGTH_SHORT).show()
             Log.e("NotificationActionReceiver", "Missing parameters for dismissing reminder.")
             return

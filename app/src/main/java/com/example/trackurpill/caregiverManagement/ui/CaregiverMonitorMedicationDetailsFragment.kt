@@ -1,34 +1,59 @@
 package com.example.trackurpill.caregiverManagement.ui
 
+import android.Manifest
 import android.app.DatePickerDialog
+import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.R
+import com.example.trackurpill.caregiverManagement.data.CaregiverMonitorViewModel
+import com.example.trackurpill.data.MedicationInteraction
 import com.example.trackurpill.data.Reminder
 import com.example.trackurpill.databinding.FragmentMedicationDetailsBinding
 import com.example.trackurpill.medicationManagement.data.PatientMedicationViewModel
 import com.example.trackurpill.medicationManagement.data.ReminderViewModel
+import com.example.trackurpill.medicationManagement.util.InteractionsAdapter
 import com.example.trackurpill.medicationManagement.util.ReminderAdapter
 import com.example.trackurpill.userManagement.data.LoggedInUserViewModel
 import com.example.trackurpill.util.ReminderScheduler
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.Blob
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.functions.functions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -37,29 +62,52 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
     private lateinit var binding: FragmentMedicationDetailsBinding
     private val nav by lazy { findNavController() }
     private val medicationVM: PatientMedicationViewModel by activityViewModels()
+    private val patientViewModel: CaregiverMonitorViewModel by activityViewModels()
     private val loggedInUserVM: LoggedInUserViewModel by activityViewModels()
     private val reminderVM: ReminderViewModel by activityViewModels()
     private lateinit var medicationId: String
     private lateinit var currentUserId: String
+    private lateinit var functions: FirebaseFunctions
+
+    private var medicationPhotoBlob: Blob? = null // To store the compressed image as Blob
+    private lateinit var photoURI: Uri
+    private var currentDialogView: View? = null
+
+    private val captureImageLauncherForEditPhoto =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            currentDialogView?.let { dialogView ->
+                if (success) {
+                    handleCapturedImageForEdit(dialogView)
+                } else {
+                    Toast.makeText(requireContext(), "Failed to capture image", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+    private val getMedicationImageForEditPhoto =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            currentDialogView?.let { dialogView ->
+                uri?.let {
+                    processSelectedImageForEdit(it, dialogView)
+                }
+            }
+        }
+
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         binding = FragmentMedicationDetailsBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
 
+        functions = Firebase.functions
         medicationId = arguments?.getString("medicationId") ?: ""
         currentUserId = FirebaseAuth.getInstance().currentUser?.uid.toString()
 
         // Fetch the user role
         loggedInUserVM.fetchUserRole()
 
-        setupRoleObserver()
         setupUI()
         observeMedicationDetails()
 
@@ -67,18 +115,8 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
         adjustViewSizes()
         adjustTextSizes()
         adjustMarginsAndPadding()
-    }
 
-    private fun setupRoleObserver() {
-        loggedInUserVM.userRoleLD.observe(viewLifecycleOwner) { role ->
-            if (role.equals("Caregiver", ignoreCase = true)) {
-                // Show the Send Reminder Button
-                binding.sendReminderButton.visibility = View.VISIBLE
-            } else {
-                // Hide the Send Reminder Button
-                binding.sendReminderButton.visibility = View.GONE
-            }
-        }
+        return binding.root
     }
 
     private fun setupUI() {
@@ -105,12 +143,83 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
             addReminderButton.setOnClickListener { showSetTimerDialog() }
             deleteMedicationButton.setOnClickListener { deleteMedication() }
             editMedicationButton.setOnClickListener { showEditMedicationDialog() }
+            sendReminderButton.visibility = View.VISIBLE
+            sendReminderButton.setOnClickListener { sendInstantReminder()}
+            viewInteractionsButton.setOnClickListener { showInteractions() }
         }
 
         reminderVM.getReminderLD().observe(viewLifecycleOwner) { reminders ->
             adapter.submitList(reminders?.filter { it.medicationId == medicationId })
         }
     }
+
+    private fun showInteractions() {
+        val medication = medicationVM.get(medicationId)
+        if (medication != null) {
+            val interactions = medication.interactions
+            if (interactions.isNotEmpty()) {
+                showInteractionsDialog(interactions)
+            } else {
+                Toast.makeText(requireContext(), "No interactions found.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(requireContext(), "Medication not found.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showInteractionsDialog(interactions: List<MedicationInteraction>) {
+        // Inflate the custom dialog layout
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_medication_interaction, null)
+
+        // Initialize the RecyclerView
+        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.recyclerViewInteractions)
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = InteractionsAdapter(interactions)
+
+        // Initialize the OK button
+        val okButton = dialogView.findViewById<MaterialButton>(R.id.dialogOkButton)
+
+        // Build the dialog
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(dialogView)
+            .setCancelable(false) // Prevent dismissal on outside touch
+            .create()
+
+        // Set click listener for the OK button to dismiss the dialog
+        okButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        // Show the dialog
+        dialog.show()
+    }
+
+    private fun sendInstantReminder() {
+        // Retrieve the current medication details from the ViewModel
+        medicationVM.getMedicationLiveData(medicationId).value?.let { medication ->
+            val patientId = medication.userId
+            val caregiverId = currentUserId
+
+            // Show a confirmation dialog before sending the reminder
+            AlertDialog.Builder(requireContext())
+                .setTitle("Send Instant Reminder")
+                .setMessage("Are you sure you want to send an instant reminder to the patient?")
+                .setPositiveButton("Send") { _, _ ->
+                    // Delegate the reminder sending to the ViewModel
+                    patientViewModel.sendInstantReminder(
+                        medicationId = medicationId,
+                        patientId = patientId,
+                        caregiverId = caregiverId
+                    )
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } ?: run {
+            Toast.makeText(requireContext(), "Medication data not available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     private fun observeMedicationDetails() {
         medicationVM.getMedicationLiveData(medicationId).observe(viewLifecycleOwner) { medication ->
@@ -424,13 +533,20 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
         val dialogView = LayoutInflater.from(requireContext())
             .inflate(R.layout.dialog_edit_medication, null)
 
-        // Non-Editable Fields (TextInputEditText with enabled=false)
+        currentDialogView = dialogView
+
+        // Non-Editable Fields
         val medicationName = dialogView.findViewById<TextInputEditText>(R.id.medicationName)
         val dosage = dialogView.findViewById<TextInputEditText>(R.id.dosage)
 
         // Editable Fields
         val expirationDate = dialogView.findViewById<TextInputEditText>(R.id.expirationDate)
         val stockLevel = dialogView.findViewById<TextInputEditText>(R.id.stockLevel)
+        val instructions = dialogView.findViewById<TextInputEditText>(R.id.instructions)
+
+        // Photo Editing Views
+        val medicationPhoto = dialogView.findViewById<ImageView>(R.id.medicationPhoto)
+        val selectPhotoButton = dialogView.findViewById<Button>(R.id.selectPhotoButton)
 
         val saveButton = dialogView.findViewById<MaterialButton>(R.id.dialogSaveButton)
         val cancelButton = dialogView.findViewById<MaterialButton>(R.id.dialogCancelButton)
@@ -442,6 +558,18 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
             dosage.setText(it.dosage)
             expirationDate.setText(it.expirationDate)
             stockLevel.setText(it.stockLevel.toString())
+            instructions.setText(it.instruction)
+
+            it.medicationPhoto?.let { blob ->
+                val bytes = blob.toBytes()
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                medicationPhoto.setImageBitmap(bitmap)
+            } ?: medicationPhoto.setImageResource(R.drawable.ic_medication_placeholder)
+        }
+
+        // Set up photo selection button
+        selectPhotoButton.setOnClickListener {
+            showImagePickerOptionsForEditPhoto(dialogView)
         }
 
         // Show Date Picker when expirationDate is clicked
@@ -455,14 +583,173 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
             .create()
 
         saveButton.setOnClickListener {
-            updateMedication(dialog, expirationDate, stockLevel)
+            val updatedExpirationDate = expirationDate.text.toString().trim()
+            val updatedStockLevel = stockLevel.text.toString().trim()
+            val updatedInstructions = instructions.text.toString().trim()
+
+            if (!validateEditInputs(dialogView, updatedExpirationDate, updatedStockLevel, updatedInstructions)) {
+                return@setOnClickListener
+            }
+
+            updateMedication(dialog, updatedExpirationDate, updatedStockLevel, updatedInstructions)
         }
 
         cancelButton.setOnClickListener {
             dialog.dismiss()
         }
 
+        dialog.setOnDismissListener {
+            currentDialogView = null
+        }
+
         dialog.show()
+    }
+
+    private fun showImagePickerOptionsForEditPhoto(dialogView: View) {
+        val options = arrayOf("Take Photo", "Choose from Gallery")
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Select Option")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> onTakePhotoOptionSelected()  // <-- Use your new function
+                    1 -> pickImageFromGalleryForEditPhoto()
+                }
+            }
+            .show()
+    }
+
+    private fun onTakePhotoOptionSelected() {
+        // Check if we already have the camera permission
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permission is already granted; proceed with taking photo
+            captureImageFromCameraForEditPhoto()
+        } else {
+            // Request the permission
+            requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private val requestCameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                // The user granted the permission.
+                // You can now safely launch the camera.
+                captureImageFromCameraForEditPhoto()
+            } else {
+                // The user denied the permission.
+                Toast.makeText(requireContext(), "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+    private fun captureImageFromCameraForEditPhoto() {
+        val photoFile = createImageFileForEdit()
+        photoURI = FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.provider",
+            photoFile
+        )
+        captureImageLauncherForEditPhoto.launch(photoURI)
+    }
+
+    private fun pickImageFromGalleryForEditPhoto() {
+        getMedicationImageForEditPhoto.launch("image/*")
+    }
+
+    private fun handleCapturedImageForEdit(dialogView: View) {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(photoURI)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // Compress the image
+            val compressedBitmap = compressBitmap(originalBitmap, 800, 800)
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
+            val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+            medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
+
+            // Display the compressed image in the ImageView
+            val medicationPhoto = dialogView.findViewById<ImageView>(R.id.medicationPhoto)
+            medicationPhoto.apply {
+                visibility = View.VISIBLE
+                setImageBitmap(compressedBitmap)
+            }
+
+            // Update the "Change Photo" button text
+            val selectPhotoButton = dialogView.findViewById<Button>(R.id.selectPhotoButton)
+            selectPhotoButton.text = "Change Photo"
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+        }
+    }
+
+    private fun processSelectedImageForEdit(uri: Uri, dialogView: View) {
+        try {
+            val inputStream = requireContext().contentResolver.openInputStream(uri)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+
+            // Compress the image
+            val compressedBitmap = compressBitmap(originalBitmap, 800, 800)
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            compressedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, byteArrayOutputStream)
+            val compressedByteArray = byteArrayOutputStream.toByteArray()
+
+            medicationPhotoBlob = Blob.fromBytes(compressedByteArray)
+
+            // Display the compressed image in the ImageView
+            val medicationPhoto = dialogView.findViewById<ImageView>(R.id.medicationPhoto)
+            medicationPhoto.apply {
+                visibility = View.VISIBLE
+                setImageBitmap(compressedBitmap)
+            }
+
+            // Update the "Change Photo" button text
+            val selectPhotoButton = dialogView.findViewById<Button>(R.id.selectPhotoButton)
+            selectPhotoButton.text = "Change Photo"
+        } catch (e: Exception) {
+            Toast.makeText(requireContext(), "Failed to process image", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun createImageFileForEdit(): File {
+        val timeStamp: String =
+            SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val storageDir: File? =
+            requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(
+            "JPEG_${timeStamp}_",
+            ".jpg",
+            storageDir
+        )
+    }
+
+    /**
+     * Compress a Bitmap to the specified width and height.
+     */
+    private fun compressBitmap(original: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+        val width = original.width
+        val height = original.height
+
+        val aspectRatio = width.toFloat() / height.toFloat()
+        val newWidth: Int
+        val newHeight: Int
+
+        if (width > height) {
+            newWidth = maxWidth
+            newHeight = (maxWidth / aspectRatio).toInt()
+        } else {
+            newHeight = maxHeight
+            newWidth = (maxHeight * aspectRatio).toInt()
+        }
+
+        return Bitmap.createScaledBitmap(original, newWidth, newHeight, true)
     }
 
 
@@ -488,44 +775,34 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
 
     private fun updateMedication(
         dialog: AlertDialog,
-        expirationDate: TextInputEditText,
-        stockLevel: TextInputEditText
+        expirationDate: String,
+        stockLevel: String,
+        instructions: String
     ) {
-        val updatedExpirationDate = expirationDate.text.toString().trim()
-        val updatedStockLevel = stockLevel.text.toString().trim()
-
-        if (updatedStockLevel.isEmpty()) {
-            Toast.makeText(
-                requireContext(),
-                "Stock Level is required.",
-                Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
-
-        val stockLevelInt = updatedStockLevel.toIntOrNull()
-        if (stockLevelInt == null) {
-            Toast.makeText(requireContext(), "Stock Level must be a valid number.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         val existingMedication = medicationVM.get(medicationId)
         if (existingMedication == null) {
             Toast.makeText(requireContext(), "Medication not found.", Toast.LENGTH_SHORT).show()
             return
         }
 
+        // If a new photo is selected, store the Blob directly; otherwise, retain existing
         val updatedMedication = existingMedication.copy(
-            expirationDate = if (updatedExpirationDate.isEmpty()) {
+            expirationDate = if (expirationDate.isEmpty()) {
                 existingMedication.expirationDate // Retain existing expiration date
             } else {
-                updatedExpirationDate
+                expirationDate
             },
-            stockLevel = stockLevelInt
+            stockLevel = stockLevel.toInt(),
+            instruction = instructions,
+            medicationPhoto = medicationPhotoBlob ?: existingMedication.medicationPhoto // Use new Blob or retain existing
         )
 
         medicationVM.setMedication(updatedMedication)
-        Toast.makeText(requireContext(), "Medication updated successfully.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            requireContext(),
+            "Medication updated successfully.",
+            Toast.LENGTH_SHORT
+        ).show()
         dialog.dismiss()
     }
 
@@ -558,6 +835,55 @@ class CaregiverMonitorMedicationDetailsFragment : Fragment() {
             .setNegativeButton("Cancel", null)
             .create()
             .show()
+    }
+
+    private fun validateEditInputs(
+        dialogView: View,
+        expirationDate: String,
+        stockLevel: String,
+        instructions: String
+    ): Boolean {
+        var isValid = true
+
+        // Validate Expiration Date
+        val expirationDateLayout = dialogView.findViewById<TextInputLayout>(R.id.expirationDateLayout)
+        if (expirationDate.isNotEmpty()) {
+            try {
+                val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expirationDate)
+                if (date.before(Calendar.getInstance().time)) {
+                    expirationDateLayout.error = "Expiration date cannot be in the past"
+                    isValid = false
+                } else {
+                    expirationDateLayout.error = null
+                }
+            } catch (e: Exception) {
+                expirationDateLayout.error = "Invalid date format. Use yyyy-MM-dd"
+                isValid = false
+            }
+        } else {
+            expirationDateLayout.error = null
+        }
+
+        // Validate Stock Level
+        val stockLevelLayout = dialogView.findViewById<TextInputLayout>(R.id.stockLevelLayout)
+        val stockLevelInt = stockLevel.toIntOrNull()
+        if (stockLevel.isEmpty() || stockLevelInt == null || stockLevelInt < 0) {
+            stockLevelLayout.error = "Stock level must be a positive number"
+            isValid = false
+        } else {
+            stockLevelLayout.error = null
+        }
+
+        // Validate Instructions
+        val instructionsLayout = dialogView.findViewById<TextInputLayout>(R.id.txtLayoutInstructions)
+        if (instructions.isEmpty()) {
+            instructionsLayout.error = "Instructions cannot be empty"
+            isValid = false
+        } else {
+            instructionsLayout.error = null
+        }
+
+        return isValid
     }
 
     private fun validateReminderTime(date: Date?, hour: Int, minute: Int): Boolean {

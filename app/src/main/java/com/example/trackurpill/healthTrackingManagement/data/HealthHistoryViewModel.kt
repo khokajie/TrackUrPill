@@ -51,7 +51,7 @@ class HealthHistoryViewModel(app: Application) : AndroidViewModel(app) {
 
         // Sort by field
         list = when (field) {
-            "recordDateTime" -> list.sortedBy { it.recordDateTime }
+            "recordDateTime" -> list.sortedBy { it.recordDateTime.toString() }
             "bmi"            -> list.sortedBy { it.bmi }
             else             -> list
         }

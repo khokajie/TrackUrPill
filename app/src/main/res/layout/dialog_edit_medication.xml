@@ -26,6 +26,25 @@
             android:gravity="center"
             android:paddingBottom="16dp" />
 
+        <!-- New Photo Editing Section -->
+        <ImageView
+            android:id="@+id/medicationPhoto"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:contentDescription="Medication Photo"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_medication_placeholder"
+            android:layout_marginTop="16dp" />
+
+        <Button
+            android:id="@+id/selectPhotoButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Change Photo"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp" />
+
         <!-- Medication Name Field (Non-Editable) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/medicationNameLayout"
@@ -98,6 +117,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Instructions Field -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/txtLayoutInstructions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Instructions"
+            android:layout_marginTop="12dp"
+            app:boxBackgroundColor="@android:color/transparent"
+            app:boxStrokeColor="@color/primary_blue">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/instructions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Buttons -->

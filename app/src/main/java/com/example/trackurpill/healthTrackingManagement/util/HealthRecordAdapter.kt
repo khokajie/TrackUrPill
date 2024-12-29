@@ -1,18 +1,31 @@
 package com.example.trackurpill.healthTrackingManagement.util
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Filter
+import android.widget.Filterable
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.trackurpill.data.HealthRecord
 import com.example.trackurpill.databinding.HealthRecordItemBinding
+import java.text.SimpleDateFormat
+import java.util.Locale
+import com.google.firebase.Timestamp
+import java.util.Date
 
+class HealthRecordAdapter :
+    ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback),
+    Filterable {
 
-class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHolder>(DiffCallback) {
-
+    // This is the full list of all records (unfiltered).
     private var allHealthRecords: List<HealthRecord> = emptyList()
+
+    // Date formats for displaying and filtering
+    private val displayDateFormat = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
+    private val filterDateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
     companion object DiffCallback : DiffUtil.ItemCallback<HealthRecord>() {
         override fun areItemsTheSame(oldItem: HealthRecord, newItem: HealthRecord) =
@@ -22,12 +35,13 @@ class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHo
             oldItem == newItem
     }
 
-    class ViewHolder(val binding: HealthRecordItemBinding) :
-        RecyclerView.ViewHolder(binding.root)
+    class ViewHolder(val binding: HealthRecordItemBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = HealthRecordItemBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false
+            LayoutInflater.from(parent.context),
+            parent,
+            false
         )
         return ViewHolder(binding)
     }
@@ -35,9 +49,10 @@ class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHo
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val healthRecord = getItem(position)
         holder.binding.apply {
-            // Date
+            // Display Date
             if (healthRecord.recordDateTime != null) {
-                txtRecordDateTime.text = "Date: ${healthRecord.recordDateTime}"
+                val date = healthRecord.recordDateTime.toDate()
+                txtRecordDateTime.text = "Date: ${displayDateFormat.format(date)}"
                 txtRecordDateTime.visibility = View.VISIBLE
             } else {
                 txtRecordDateTime.visibility = View.GONE
@@ -59,9 +74,9 @@ class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHo
                 containerHeight.visibility = View.GONE
             }
 
-            // Blood Pressure
-            if (healthRecord.bloodPressure > 0) {
-                txtBloodPressure.text = "${healthRecord.bloodPressure} mmHg"
+            // Blood Pressure (Systolic / Diastolic)
+            if (healthRecord.systolic > 0 && healthRecord.diastolic > 0) {
+                txtBloodPressure.text = "${healthRecord.systolic}/${healthRecord.diastolic} mmHg"
                 containerBloodPressure.visibility = View.VISIBLE
             } else {
                 containerBloodPressure.visibility = View.GONE
@@ -109,10 +124,54 @@ class HealthRecordAdapter : ListAdapter<HealthRecord, HealthRecordAdapter.ViewHo
         }
     }
 
+    /**
+     * Store the unfiltered list of HealthRecords and set it to the RecyclerView.
+     * Use this function in your fragment or activity whenever you get new data.
+     */
     fun submitFullList(list: List<HealthRecord>) {
         allHealthRecords = list
         submitList(list)
     }
 
+    /**
+     * Implement Filterable to let the user filter HealthRecords by date.
+     */
+    override fun getFilter(): Filter {
+        return object : Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                val query = constraint?.toString()?.trim().orEmpty()
+                Log.d("HealthRecordAdapter", "Filtering with query: '$query'")
 
+                // If query is empty, show the entire list
+                val filteredList = if (query.isEmpty()) {
+                    allHealthRecords
+                } else {
+                    // Filter by matching the date portion (dd MMM yyyy)
+                    allHealthRecords.filter { record ->
+                        try {
+                            val date = record.recordDateTime.toDate()
+                            val onlyDateString = filterDateFormat.format(date)
+                            onlyDateString == query
+                        } catch (ex: Exception) {
+                            Log.e("HealthRecordAdapter", "Date parsing error: ${ex.message}")
+                            false
+                        }
+                    }
+                }
+
+                Log.d("HealthRecordAdapter", "Filtered list size: ${filteredList.size}")
+
+                return FilterResults().apply {
+                    values = filteredList
+                }
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                val newList = results?.values as? List<HealthRecord> ?: emptyList()
+                Log.d("HealthRecordAdapter", "Publishing filtered list of size: ${newList.size}")
+                submitList(newList)
+            }
+        }
+    }
 }

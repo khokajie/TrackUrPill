@@ -9,6 +9,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.trackurpill.data.MEDICATION
 import com.example.trackurpill.data.Medication
+import com.example.trackurpill.data.MedicationInteraction
 import com.example.trackurpill.notification.data.NotificationViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -239,6 +240,14 @@ class PatientMedicationViewModel(app: Application) : AndroidViewModel(app) {
             Log.e("PatientMedicationVM", "Error calling notifyLowMedicationStock cloud function: ", e)
             // Handle exceptions related to the cloud function call
         }
+    }
+
+    // Function to retrieve interactions for a medication
+    fun getInteractions(medicationId: String): LiveData<List<MedicationInteraction>> {
+        val interactionsLD = MutableLiveData<List<MedicationInteraction>>()
+        val medication = get(medicationId)
+        interactionsLD.value = medication?.interactions ?: emptyList()
+        return interactionsLD
     }
 
 }

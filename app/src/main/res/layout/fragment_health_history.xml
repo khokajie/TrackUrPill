@@ -99,12 +99,27 @@
         </com.google.android.material.card.MaterialCardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- SearchView for filtering health records -->
+    <androidx.appcompat.widget.SearchView
+        android:id="@+id/searchViewHealthRecords"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:background="@drawable/search_view_background"
+        android:focusable="false"
+        android:iconifiedByDefault="false"
+        android:queryHint="Search by date"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/summaryContainer"
+        app:searchIcon="@drawable/ic_search" />
+
     <!-- No record -->
     <TextView
         android:id="@+id/noRecordText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
         android:text="No record"
         android:textColor="@color/primary_blue"
         android:textSize="20sp"
@@ -112,18 +127,18 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/summaryContainer" />
+        app:layout_constraintTop_toBottomOf="@+id/searchViewHealthRecords" />
 
     <!-- RecyclerView for Health Records -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewHealthRecords"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toTopOf="@+id/fabAddHealthRecord"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/summaryContainer"
+        app:layout_constraintTop_toBottomOf="@+id/searchViewHealthRecords"
         tools:listitem="@layout/health_record_item" />
 
     <!-- Add Health Record Button -->

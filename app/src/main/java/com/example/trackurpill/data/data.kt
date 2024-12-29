@@ -4,10 +4,8 @@ import com.google.firebase.firestore.Blob
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import java.sql.Time
-import java.text.SimpleDateFormat
+import com.google.firebase.Timestamp
 import java.util.Date
-import java.util.Locale
 
 
 val USER = Firebase.firestore.collection("User")
@@ -59,18 +57,25 @@ data class Caregiver(
 
 
 
-// Medication Data Model
+// Add this data class if not already present
+data class MedicationInteraction(
+    val medicationPair: String = "",
+    val interactionDetail: String = "",
+    val suggestion: String = ""
+)
+
+// Update the Medication data class
 data class Medication(
-    @DocumentId
-    var medicationId: String = "",
-    var medicationName: String = "",
-    var dosage: String = "",
-    var expirationDate: String = "",
-    var stockLevel: Int = 0,
-    var instruction: String = "",
-    var medicationPhoto: Blob? = null, // Use Blob for binary data
-    var medicationStatus: String = "",
-    var userId: String = "" // Link to User (Patient)
+    val medicationId: String = "",
+    val medicationName: String = "",
+    val dosage: String = "",
+    val expirationDate: String = "",
+    val stockLevel: Int = 0,
+    val instruction: String = "",
+    val medicationPhoto: Blob? = null,
+    val medicationStatus: String = "Active",
+    val userId: String = "",
+    val interactions: List<MedicationInteraction> = emptyList() // New field
 )
 
 data class Reminder(
@@ -88,16 +93,17 @@ data class Reminder(
 data class HealthRecord(
     @DocumentId
     var recordId: String = "",
-    var weight: Double = 0.0,
-    var height: Double = 0.0,
-    var bloodPressure: Int = 0,
-    var heartRate: Int = 0,
-    var bloodSugarLevels: Double = 0.0,
-    var cholesterolLevels: Double = 0.0,
-    var bmi: Double = 0.0,
-    var temperature: Double = 0.0,
-    var recordDateTime: String = "",
-    var userId: String = "" // Link to Patient
+    var weight: Double = 0.0, // in kilograms (kg) or pounds (lbs)
+    var height: Double = 0.0, // in centimeters (cm) or inches (in)
+    var systolic: Int = 0,     // systolic blood pressure (mmHg)
+    var diastolic: Int = 0,    // diastolic blood pressure (mmHg)
+    var heartRate: Int = 0,    // beats per minute (bpm)
+    var bloodSugarLevels: Double = 0.0, // in mg/dL or mmol/L
+    var cholesterolLevels: Double = 0.0, // in mg/dL or mmol/L
+    var bmi: Double = 0.0,     // Body Mass Index
+    var temperature: Double = 0.0, // in Celsius (°C) or Fahrenheit (°F)
+    var recordDateTime: Timestamp = Timestamp.now(), // Firestore Timestamp
+    var userId: String = ""    // Link to Patient/User ID
 )
 
 data class MedicationLog(
@@ -123,13 +129,9 @@ data class Notification(
     var senderId: String = "" // Optional: Include if managed elsewhere
 )
 
+
+
 data class LoggedInUser(
     var userType: String = "",
     var userId: String = ""
-)
-
-data class MedicationInteraction(
-    val medicationPair: String,
-    val interactionDetail: String,
-    val suggestion: String
 )

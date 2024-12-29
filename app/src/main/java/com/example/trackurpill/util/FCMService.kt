@@ -88,7 +88,6 @@ class FCMService : FirebaseMessagingService() {
                 val takeIntent = Intent(this, NotificationActionReceiver::class.java).apply {
                     action = "ACTION_TAKE_MEDICATION"
                     putExtra("notificationId", notificationIdStr)
-                    putExtra("reminderId", data["reminderId"])
                     putExtra("medicationId", data["medicationId"])
                     putExtra("dosage", dosage)
                     putExtra("type", type)
@@ -111,7 +110,6 @@ class FCMService : FirebaseMessagingService() {
                 val dismissIntent = Intent(this, NotificationActionReceiver::class.java).apply {
                     action = "ACTION_DISMISS_REMINDER"
                     putExtra("notificationId", notificationIdStr)
-                    putExtra("reminderId", data["reminderId"])
                     putExtra("type", type)
                 }
                 val dismissPendingIntent = PendingIntent.getBroadcast(

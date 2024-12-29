@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_margin="12dp"
+    android:layout_marginBottom="12dp"
+    android:layout_marginTop="12dp"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="6dp">
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,41 +18,42 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Record Date -->
+        <!-- Date and Time -->
         <TextView
             android:id="@+id/txtRecordDateTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Date: 12/12/2023"
+            android:text="Date: 28 Dec 2024 16:19"
             android:textColor="@color/primary_blue"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
-            android:visibility="visible" />
+            android:visibility="gone" />
 
         <!-- Weight -->
         <LinearLayout
             android:id="@+id/containerWeight"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:orientation="horizontal"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="8dp">
 
             <TextView
+                android:id="@+id/labelWeight"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Weight:"
-                android:textColor="@android:color/black"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtWeight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="70.5 kg"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Height -->
@@ -55,25 +61,26 @@
             android:id="@+id/containerHeight"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:orientation="horizontal"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelHeight"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Height:"
-                android:textColor="@android:color/black"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtHeight"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="175.0 cm"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Blood Pressure -->
@@ -82,24 +89,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelBloodPressure"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Blood Pressure:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtBloodPressure"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="120/80 mmHg"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Heart Rate -->
@@ -108,24 +116,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelHeartRate"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Heart Rate:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtHeartRate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="75 bpm"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Blood Sugar Levels -->
@@ -134,24 +143,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelBloodSugarLevels"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Blood Sugar:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtBloodSugarLevels"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="5.6 mmol/L"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Cholesterol Levels -->
@@ -160,24 +170,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelCholesterolLevels"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Cholesterol:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtCholesterolLevels"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="5.2 mmol/L"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- BMI -->
@@ -186,24 +197,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelBmi"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="BMI:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtBmi"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="22.9"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
 
         <!-- Temperature -->
@@ -212,24 +224,26 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:layout_marginTop="4dp">
 
             <TextView
+                android:id="@+id/labelTemperature"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_height="wrap_content"
                 android:text="Temperature:"
-                android:textColor="@android:color/black"
-                android:textStyle="bold"
-                android:textSize="16sp" />
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
 
             <TextView
                 android:id="@+id/txtTemperature"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:text="36.6 °C"
+                android:textColor="@color/text_dark_gray"
+                android:textSize="16sp" /> <!-- Increased from 14sp to 16sp -->
         </LinearLayout>
+
     </LinearLayout>
 </androidx.cardview.widget.CardView>

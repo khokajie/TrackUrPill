@@ -459,9 +459,7 @@ exports.processScheduledReminders = functions.pubsub
 
           const dataPayload = {
             type: "reminder", // Specify the type
-            reminderId: String(reminderId),
             medicationId: String(reminder.medicationId),
-            medicationName: String(reminder.medicationName),
             dosage: dosage.toString(), // Convert to string for FCM
             userId: String(reminder.userId),
             title: title,
@@ -1115,6 +1113,156 @@ ${medicationName} with currentStock: ${currentStock}`,
     }
   },
 );
+
+/**
+ * Callable function to send an instant reminder to a patient.
+ * @param {object} data - Contains medicationId, patientId, and caregiverId.
+ * @param {object} context - Authentication context.
+ * @returns {object} - Success or error message.
+ */
+exports.sendInstantReminder = functions.https.onCall(async (data, context) => {
+  try {
+    console.log("sendInstantReminder called with data:", JSON.stringify(data));
+
+    // 1. Authentication Check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated.",
+      );
+    }
+
+    // 2. Input Validation
+    const { medicationId, patientId, caregiverId } = data;
+
+    if (!medicationId || typeof medicationId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid medicationId is required.",
+      );
+    }
+
+    if (!patientId || typeof patientId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid patientId is required.",
+      );
+    }
+
+    if (!caregiverId || typeof caregiverId !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid caregiverId is required.",
+      );
+    }
+
+    // 3. Retrieve Medication Details
+    const medicationDoc = await admin
+      .firestore()
+      .collection("Medication")
+      .doc(medicationId)
+      .get();
+
+    if (!medicationDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "Medication not found.",
+      );
+    }
+
+    const medicationData = medicationDoc.data();
+    const medicationName = medicationData.medicationName;
+    const dosage = medicationData.dosage;
+
+    if (!medicationName || !dosage) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Medication name or dosage is missing.",
+      );
+    }
+
+    // 4. Retrieve Caregiver's Name
+    const caregiverDoc = await admin
+      .firestore()
+      .collection("Caregiver")
+      .doc(caregiverId)
+      .get();
+
+    if (!caregiverDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Caregiver not found.");
+    }
+
+    const caregiverData = caregiverDoc.data();
+    const caregiverName = caregiverData.userName || "Caregiver";
+
+    // 5. Retrieve Patient's FCM Token using existing helper
+    const userFcmToken = await getUserFcmToken(patientId);
+
+    // 6. Format the Reminder Message
+    const formattedMessage = `${caregiverName} reminds you to take ${medicationName} ：${dosage}`;
+
+    // 7. Create a unique notificationId
+    const notificationId = admin
+      .firestore()
+      .collection("Notification")
+      .doc().id;
+
+    // 8. Log the Notification in Firestore
+    const notificationData = {
+      type: "reminder",
+      userId: patientId, // Recipient
+      senderId: caregiverId, // Sender
+      message: formattedMessage,
+      status: "Sent",
+      timestamp: admin.firestore.Timestamp.now(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await admin
+      .firestore()
+      .collection("Notification")
+      .doc(notificationId)
+      .set(notificationData);
+
+    // 9. Prepare Data Payload for FCM
+    const dataPayload = {
+      type: "reminder",
+      notificationId: notificationId,
+      message: formattedMessage,
+      title: "Medication Reminder",
+      body: formattedMessage,
+      medicationId: medicationId,
+      dosage: dosage,
+    };
+
+    // 10. Prepare FCM Message
+    const fcmMessage = {
+      token: userFcmToken,
+      data: dataPayload,
+      android: {
+        priority: "high",
+      },
+    };
+
+    // 11. Send Notification via FCM
+    const fcmResponse = await admin.messaging().send(fcmMessage);
+
+    console.log(
+      `FCM Notification sent to patient ${patientId}: Message ID: ${fcmResponse}`,
+    );
+
+    return { success: true, message: "Reminder sent successfully." };
+  } catch (error) {
+    console.error("Error in sendInstantReminder:", error);
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+    throw new functions.https.HttpsError(
+      "internal",
+      error.message || "An unknown error occurred.",
+    );
+  }
+});
 
 /**
  * Helper function to retrieve the FCM token for a given userId by checking both "Patient" and "Caregiver" collections.

@@ -3,6 +3,7 @@ package com.example.trackurpill.caregiverManagement.data
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.trackurpill.data.CAREGIVER
@@ -27,6 +28,10 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
     private val resultLD = MutableLiveData<List<Patient>>()
     private var listener: ListenerRegistration? = null
     private val functions: FirebaseFunctions = Firebase.functions
+
+    // LiveData to observe the result of sending the reminder
+    private val _sendReminderResult = MutableLiveData<Result<String>>()
+    val sendReminderResult: LiveData<Result<String>> = _sendReminderResult
 
     // Filters and Sorting
     private var name = ""
@@ -81,7 +86,6 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
         return filteredPatientsLD
     }
 
-
     // Get all patients
     fun getAll() = patientLD.value ?: emptyList()
 
@@ -117,7 +121,6 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
         return specificPatientLD
     }
 
-
     // Update filtered and sorted results
     private fun updateResult() {
         var list = getAllByCaregiver()
@@ -140,7 +143,51 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
         resultLD.value = list
     }
 
+    /**
+     * Sends an instant reminder to a patient.
+     *
+     * @param medicationId The ID of the medication.
+     * @param patientId The ID of the patient to send the reminder to.
+     * @param caregiverId The ID of the caregiver sending the reminder.
+     */
+    fun sendInstantReminder(
+        medicationId: String,
+        patientId: String,
+        caregiverId: String
+    ) {
+        // Prepare the data payload for the cloud function
+        val data = hashMapOf(
+            "medicationId" to medicationId,
+            "patientId" to patientId,
+            "caregiverId" to caregiverId
+        )
 
+        // Launch a coroutine on the IO dispatcher for network operations
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Call the Firebase Cloud Function "sendInstantReminder"
+                val result = functions
+                    .getHttpsCallable("sendInstantReminder")
+                    .call(data)
+                    .await()
+
+                // Parse the result
+                val resultData = result.data as? Map<*, *>
+                if (resultData?.get("success") == true) {
+                    // Post success to LiveData
+                    _sendReminderResult.postValue(Result.success("Reminder sent successfully"))
+                } else {
+                    // Post failure to LiveData
+                    _sendReminderResult.postValue(Result.failure(Exception("Failed to send reminder")))
+                }
+            } catch (e: Exception) {
+                // Handle exceptions and post failure to LiveData
+                _sendReminderResult.postValue(Result.failure(e))
+            }
+        }
+    }
+
+    // Existing sendPatientInvitation function remains unchanged
     fun sendPatientInvitation(
         email: String,
         caregiverId: String,
@@ -225,5 +272,4 @@ class CaregiverMonitorViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
 }
