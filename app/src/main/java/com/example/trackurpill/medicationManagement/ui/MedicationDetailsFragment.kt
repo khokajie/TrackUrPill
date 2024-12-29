@@ -257,10 +257,12 @@ class MedicationDetailsFragment : Fragment() {
                             createDateFromPicker(datePicker)
                         } else null
 
-                        // Validate reminder date and time
-                        if (!validateReminderTime(selectedDate, hour, minute)) {
-                            Toast.makeText(requireContext(), "Invalid reminder time", Toast.LENGTH_SHORT).show()
-                            return@setOnClickListener
+                        if (selectedFrequency == "Once"){
+                            // Validate reminder date and time
+                            if (!validateReminderTime(selectedDate, hour, minute)) {
+                                Toast.makeText(requireContext(), "Invalid reminder time", Toast.LENGTH_SHORT).show()
+                                return@setOnClickListener
+                            }
                         }
 
                         // Validate required fields based on frequency
@@ -324,11 +326,13 @@ class MedicationDetailsFragment : Fragment() {
                     }.time
                 } else null
 
-                // Validate reminder date and time
-                if (!validateReminderTime(selectedDate, hour, minute)) {
-                    Toast.makeText(requireContext(), "Invalid reminder time", Toast.LENGTH_SHORT).show()
-                    dialogInterface.dismiss()
-                    return@setPositiveButton
+                if (selectedFrequency == "Once"){
+                    // Validate reminder date and time
+                    if (!validateReminderTime(selectedDate, hour, minute)) {
+                        Toast.makeText(requireContext(), "Invalid reminder time", Toast.LENGTH_SHORT).show()
+                        dialogInterface.dismiss()
+                        return@setPositiveButton
+                    }
                 }
 
                 if (selectedFrequency == "Once" && selectedDate == null) {
